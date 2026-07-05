@@ -11,7 +11,7 @@ Track every implementation task here. Update this file after each task passes ve
 - [x] Task 7 Image Capture and Compression
 - [x] Task 8 Video Recorder
 - [x] Task 9 Media Preview
-- [ ] Task 10 Apps Script API Client
+- [x] Task 10 Apps Script API Client
 - [ ] Task 11 Google Apps Script Backend
 - [ ] Task 12 Frontend Upload Integration
 - [ ] Task 13 Gallery
