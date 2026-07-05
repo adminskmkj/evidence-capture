@@ -19,10 +19,11 @@ interface ApiRequest {
   file?: { name: string; mimeType: string; base64: string };
 }
 
-interface ApiResponse<T = unknown> {
+interface ApiResponse {
   ok: boolean;
   error?: string;
-  data?: T;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
 
 function blobToBase64(blob: Blob): Promise<string> {
@@ -36,7 +37,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 // Apps Script Web App redirects first POST (302) — fetch loses body on redirect.
 // Use XMLHttpRequest which handles the redirect correctly.
-function xhrPost<T>(payload: ApiRequest): Promise<ApiResponse<T>> {
+function xhrPost(payload: ApiRequest): Promise<ApiResponse> {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
@@ -44,8 +45,7 @@ function xhrPost<T>(payload: ApiRequest): Promise<ApiResponse<T>> {
 
     xhr.onload = () => {
       try {
-        const body: ApiResponse<T> = JSON.parse(xhr.responseText);
-        resolve(body);
+        resolve(JSON.parse(xhr.responseText));
       } catch {
         resolve({ ok: false, error: 'Invalid response' });
       }
@@ -57,7 +57,7 @@ function xhrPost<T>(payload: ApiRequest): Promise<ApiResponse<T>> {
   });
 }
 
-async function callApi<T = unknown>(payload: ApiRequest): Promise<ApiResponse<T>> {
+async function callApi(payload: ApiRequest): Promise<ApiResponse> {
   try {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), 25000);
@@ -68,23 +68,20 @@ async function callApi<T = unknown>(payload: ApiRequest): Promise<ApiResponse<T>
       signal: ctrl.signal,
     });
     clearTimeout(id);
-    if (resp.ok) {
-      const body: ApiResponse<T> = await resp.json();
-      return body;
-    }
+    if (resp.ok) return await resp.json();
   } catch {
     // fall through
   }
-  return xhrPost<T>(payload);
+  return xhrPost(payload);
 }
 
 export async function getBootstrapData(): Promise<BootstrapData> {
-  const resp = await callApi<BootstrapData>({ action: 'getBootstrapData' });
+  const resp = await callApi({ action: 'getBootstrapData' });
   if (!resp.ok || !resp.data) {
     const { bootstrapData } = await import('../data/seed');
     return bootstrapData;
   }
-  return resp.data;
+  return resp.data as BootstrapData;
 }
 
 export interface ListEvidenceFilters {
@@ -106,16 +103,16 @@ export async function listEvidence(
   limit = 20,
   offset = 0,
 ): Promise<ListEvidenceResult> {
-  const resp = await callApi<ListEvidenceItem[]>({
+  const resp = await callApi({
     action: 'listEvidence',
     filters: filters as Record<string, unknown>,
     limit,
     offset,
   });
-  if (!resp.ok || !resp.data) {
+  if (!resp.ok || !resp.items) {
     return { items: [], nextOffset: 0 };
   }
-  return { items: resp.data as unknown as EvidenceItem[], nextOffset: offset + limit };
+  return { items: resp.items as EvidenceItem[], nextOffset: resp.nextOffset || 0 };
 }
 
 export async function uploadEvidence(
@@ -132,7 +129,7 @@ export async function uploadEvidence(
 
   try {
     const base64 = await blobToBase64(blob);
-    const resp = await callApi<{ evidence_id: string }>({
+    const resp = await callApi({
       action: 'uploadEvidence',
       metadata: {
         subject_id: formData.subjectId,
@@ -154,27 +151,9 @@ export async function uploadEvidence(
     });
 
     return resp.ok
-      ? { ok: true, evidence_id: resp.data?.evidence_id }
+      ? { ok: true, evidence_id: resp.evidence_id }
       : { ok: false, error: resp.error || 'Upload gagal' };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Ralat rangkaian' };
   }
-}
-
-interface ListEvidenceItem {
-  evidence_id: string;
-  created_at: string;
-  subject_id: string;
-  class_id: string;
-  student_ids: string[];
-  activity_title: string;
-  notes: string;
-  evidence_type: EvidenceType;
-  file_name: string;
-  file_id: string;
-  file_url: string;
-  mime_type: string;
-  file_size_bytes: number;
-  duration_seconds?: number;
-  status: string;
 }
