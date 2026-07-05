@@ -9,10 +9,11 @@
 - [x] Task 5 Dashboard
 - [x] Task 6 Evidence Form
 - [x] Task 7 Image Capture and Compression
+- [x] Task 8 Video Recorder
 
 ## Current
 
-Task 8 - Video Recorder
+Task 9 - Media Preview
 
 ## Blockers
 

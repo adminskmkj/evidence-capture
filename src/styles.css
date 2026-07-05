@@ -545,6 +545,31 @@ button {
   color: var(--accent);
 }
 
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.recording-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff0000;
+  animation: pulse-rec 1s ease-in-out infinite;
+}
+
+@keyframes pulse-rec {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.recording-indicator strong {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
 @media (max-width: 900px) {
   .app-header {
     grid-template-columns: 1fr;

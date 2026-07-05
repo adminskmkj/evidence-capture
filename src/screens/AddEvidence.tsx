@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { EvidenceForm, type EvidenceFormData } from '../components/EvidenceForm';
 import { ImageCapture, type CapturedImage } from '../components/ImageCapture';
+import { VideoRecorder, type CapturedVideo } from '../components/VideoRecorder';
 
-type Step = 'form' | 'capture' | 'done';
+type Step = 'form' | 'capture-image' | 'capture-video' | 'done';
 
 interface AddEvidenceProps {
   initialSubjectId?: string;
@@ -12,31 +13,46 @@ interface AddEvidenceProps {
 export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidenceProps) {
   const [step, setStep] = useState<Step>('form');
   const [formData, setFormData] = useState<EvidenceFormData | null>(null);
-  const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
+  const [capturedMedia, setCapturedMedia] = useState<
+    { type: 'image'; data: CapturedImage } | { type: 'video'; data: CapturedVideo } | null
+  >(null);
 
   function handleFormSubmit(data: EvidenceFormData) {
     setFormData(data);
-    setStep('capture');
   }
 
   function handleImageCapture(image: CapturedImage) {
-    setCapturedImage(image);
+    setCapturedMedia({ type: 'image', data: image });
+    setStep('done');
+  }
+
+  function handleVideoCapture(video: CapturedVideo) {
+    setCapturedMedia({ type: 'video', data: video });
     setStep('done');
   }
 
   function handleReset() {
     setStep('form');
     setFormData(null);
-    setCapturedImage(null);
+    setCapturedMedia(null);
   }
 
-  if (step === 'done' && capturedImage) {
+  if (step === 'done' && capturedMedia) {
+    const sizeLabel =
+      capturedMedia.type === 'image'
+        ? `${(capturedMedia.data.sizeBytes / 1024).toFixed(0)} KB`
+        : `${(capturedMedia.data.sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+
     return (
       <section className="placeholder-panel">
         <p className="eyebrow">Evidence Disimpan</p>
-        <h2>Gambar berjaya diambil</h2>
-        <img alt="Evidence" className="capture-preview" src={capturedImage.dataUrl} />
-        <p>Saiz: {(capturedImage.sizeBytes / 1024).toFixed(0)} KB</p>
+        <h2>{capturedMedia.type === 'image' ? 'Gambar' : 'Video'} berjaya diambil</h2>
+        {capturedMedia.type === 'image' ? (
+          <img alt="Evidence" className="capture-preview" src={capturedMedia.data.dataUrl} />
+        ) : (
+          <video className="capture-preview" controls src={capturedMedia.data.url} />
+        )}
+        <p>Saiz: {sizeLabel}</p>
         <p>Subjek: {formData?.subjectId} | Aktiviti: {formData?.activityTitle}</p>
         <p className="context-note">Upload ke Google Drive akan datang dalam Task 12.</p>
         <button className="primary-action" onClick={handleReset} type="button">
@@ -46,7 +62,7 @@ export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidencePro
     );
   }
 
-  if (step === 'capture') {
+  if (step === 'capture-image') {
     return (
       <section>
         <div className="form-header">
@@ -55,10 +71,30 @@ export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidencePro
         </div>
         <ImageCapture
           onCapture={handleImageCapture}
-          onRetake={() => setCapturedImage(null)}
+          onRetake={() => setCapturedMedia(null)}
         />
         <div className="form-actions">
-          <button className="form-chip" onClick={handleReset} type="button">
+          <button className="form-chip" onClick={() => setStep('form')} type="button">
+            ← Kembali ke Form
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (step === 'capture-video') {
+    return (
+      <section>
+        <div className="form-header">
+          <p className="eyebrow">Rakam Video</p>
+          <h2>Rakam video evidence (maks 90 saat)</h2>
+        </div>
+        <VideoRecorder
+          onCapture={handleVideoCapture}
+          onRetake={() => setCapturedMedia(null)}
+        />
+        <div className="form-actions">
+          <button className="form-chip" onClick={() => setStep('form')} type="button">
             ← Kembali ke Form
           </button>
         </div>
@@ -77,6 +113,24 @@ export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidencePro
         initialSubjectId={initialSubjectId}
         onSubmit={handleFormSubmit}
       />
+      {formData && (
+        <div className="form-actions" style={{ marginTop: '1.25rem' }}>
+          <button
+            className="primary-action"
+            onClick={() => setStep('capture-image')}
+            type="button"
+          >
+            📷 Ambil Gambar
+          </button>
+          <button
+            className="primary-action"
+            onClick={() => setStep('capture-video')}
+            type="button"
+          >
+            🎥 Rakam Video
+          </button>
+        </div>
+      )}
     </section>
   );
 }
