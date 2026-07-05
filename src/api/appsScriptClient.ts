@@ -40,8 +40,7 @@ function xhrPost<T>(payload: ApiRequest): Promise<ApiResponse<T>> {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.withCredentials = true;
+    xhr.setRequestHeader('Content-Type', 'text/plain');
 
     xhr.onload = () => {
       try {
@@ -59,13 +58,12 @@ function xhrPost<T>(payload: ApiRequest): Promise<ApiResponse<T>> {
 }
 
 async function callApi<T = unknown>(payload: ApiRequest): Promise<ApiResponse<T>> {
-  // Try fetch first (modern, simple). Apps Script may redirect — fallback to XHR.
   try {
     const ctrl = new AbortController();
     const id = setTimeout(() => ctrl.abort(), 25000);
     const resp = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
       signal: ctrl.signal,
     });
