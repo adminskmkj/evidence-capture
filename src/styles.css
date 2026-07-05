@@ -375,6 +375,118 @@ button {
   padding: 0.6rem 0.9rem;
 }
 
+.form-header {
+  margin-bottom: 1.25rem;
+}
+
+.form-header h2 {
+  margin: 0;
+  color: var(--fg);
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.evidence-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.form-group {
+  border: 3px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  margin: 0;
+  padding: 1.25rem;
+}
+
+.form-group legend {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--fg);
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.form-chip {
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  transition:
+    background 100ms ease,
+    transform 100ms ease;
+}
+
+.form-chip:hover {
+  background: var(--card-alt);
+  transform: translate(-1px, -1px);
+}
+
+.form-chip--active {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.form-chip--small {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.form-input,
+.form-textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.75rem;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 0.85rem 1rem;
+  resize: vertical;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.form-actions .primary-action:disabled {
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.form-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .app-header {
     grid-template-columns: 1fr;

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Layout } from './components/Layout';
 import type { NavTabId } from './components/NavTabs';
 import { Dashboard } from './screens/Dashboard';
+import { AddEvidence } from './screens/AddEvidence';
 
 const tabTitles: Record<NavTabId, string> = {
   dashboard: 'Dashboard',
@@ -12,7 +13,7 @@ const tabTitles: Record<NavTabId, string> = {
 
 const tabDescriptions: Record<NavTabId, string> = {
   dashboard: 'Ringkasan data demo untuk subjek, kelas dan murid.',
-  'add-evidence': 'Placeholder untuk form evidence dalam task seterusnya.',
+  'add-evidence': 'Pilih subjek, kelas, murid dan isi maklumat evidence.',
   gallery: 'Placeholder untuk senarai evidence yang akan difilter.',
   settings: 'Placeholder untuk konfigurasi Google Apps Script dan import data.',
 };
@@ -22,28 +23,12 @@ interface PendingEvidenceContext {
   classId?: string;
 }
 
-function PlaceholderPanel({
-  pendingEvidenceContext,
-  tabId,
-}: {
-  pendingEvidenceContext?: PendingEvidenceContext;
-  tabId: NavTabId;
-}) {
-  const hasPendingContext =
-    tabId === 'add-evidence' &&
-    Boolean(pendingEvidenceContext?.subjectId || pendingEvidenceContext?.classId);
-
+function PlaceholderPanel({ tabId }: { tabId: NavTabId }) {
   return (
     <section className="placeholder-panel">
       <p className="eyebrow">{tabTitles[tabId]}</p>
       <h2>{tabTitles[tabId]}</h2>
       <p>{tabDescriptions[tabId]}</p>
-      {hasPendingContext ? (
-        <p className="context-note">
-          Shortcut dipilih: {pendingEvidenceContext?.subjectId || 'subjek belum dipilih'}
-          {pendingEvidenceContext?.classId ? ` / ${pendingEvidenceContext.classId}` : ''}
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -58,16 +43,25 @@ function App() {
     setActiveTab('add-evidence');
   }
 
+  function renderContent() {
+    switch (activeTab) {
+      case 'dashboard':
+        return <Dashboard evidenceThisMonth={0} onStartEvidence={handleStartEvidence} />;
+      case 'add-evidence':
+        return (
+          <AddEvidence
+            initialClassId={pendingEvidenceContext?.classId}
+            initialSubjectId={pendingEvidenceContext?.subjectId}
+          />
+        );
+      default:
+        return <PlaceholderPanel tabId={activeTab} />;
+    }
+  }
+
   return (
     <Layout activeTab={activeTab} onTabChange={setActiveTab}>
-      {activeTab === 'dashboard' ? (
-        <Dashboard evidenceThisMonth={0} onStartEvidence={handleStartEvidence} />
-      ) : (
-        <PlaceholderPanel
-          pendingEvidenceContext={pendingEvidenceContext}
-          tabId={activeTab}
-        />
-      )}
+      {renderContent()}
     </Layout>
   );
 }

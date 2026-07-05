@@ -7,7 +7,7 @@ Track every implementation task here. Update this file after each task passes ve
 - [x] Task 3 Seed Data
 - [x] Task 4 Layout
 - [x] Task 5 Dashboard
-- [ ] Task 6 Evidence Form
+- [x] Task 6 Evidence Form
 - [ ] Task 7 Image Capture and Compression
 - [ ] Task 8 Video Recorder
 - [ ] Task 9 Media Preview

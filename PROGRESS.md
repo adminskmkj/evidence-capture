@@ -7,10 +7,11 @@
 - [x] Task 3 Seed Data
 - [x] Task 4 Layout
 - [x] Task 5 Dashboard
+- [x] Task 6 Evidence Form
 
 ## Current
 
-Task 6 - Evidence Form
+Task 7 - Image Capture and Compression
 
 ## Blockers
 
@@ -18,7 +19,7 @@ None
 
 ## Next
 
-Task 7 - Image Capture and Compression
+Task 8 - Video Recorder
 
 ## Latest Verification
 
