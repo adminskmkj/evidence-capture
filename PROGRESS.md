@@ -8,10 +8,11 @@
 - [x] Task 4 Layout
 - [x] Task 5 Dashboard
 - [x] Task 6 Evidence Form
+- [x] Task 7 Image Capture and Compression
 
 ## Current
 
-Task 7 - Image Capture and Compression
+Task 8 - Video Recorder
 
 ## Blockers
 
@@ -19,7 +20,7 @@ None
 
 ## Next
 
-Task 8 - Video Recorder
+Task 9 - Media Preview
 
 ## Latest Verification
 
