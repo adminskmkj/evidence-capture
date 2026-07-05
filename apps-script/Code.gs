@@ -1,254 +1,207 @@
 // Evidence Pentaksiran — Google Apps Script Backend
 // Deploy as a Web App (Execute as: Me, Who has access: Anyone)
 
-const CACHE_TTL = 300; // 5 min cache for bootstrap data
-
 function doPost(e) {
   try {
-    const payload = JSON.parse(e.postData.contents);
-    return handleAction(payload);
+    const p = JSON.parse(e.postData.contents);
+    var action = p.action;
+
+    if (action === 'login') return handleLogin(p);
+    if (action === 'getBootstrapData') return handleGetBootstrapData(p);
+    if (action === 'uploadStudents') return handleUploadStudents(p);
+    if (action === 'listEvidence') return handleListEvidence(p);
+    if (action === 'uploadEvidence') return handleUploadEvidence(p);
+
+    return jsonResponse({ ok: false, error: 'Unknown action' });
   } catch (err) {
-    return jsonResponse({ ok: false, error: err.message || 'Invalid request' });
+    return jsonResponse({ ok: false, error: err.message });
   }
 }
 
-function handleAction(payload) {
-  const action = payload.action;
+// --- Login ---
+function handleLogin(p) {
+  var name = (p.userName || '').trim();
+  if (!name) return jsonResponse({ ok: false, error: 'Nama diperlukan' });
 
-  switch (action) {
-    case 'getBootstrapData':
-      return handleGetBootstrapData();
-    case 'listEvidence':
-      return handleListEvidence(payload);
-    case 'uploadEvidence':
-      return handleUploadEvidence(payload);
-    case 'updateEvidence':
-      return handleUpdateEvidence(payload);
-    case 'archiveEvidence':
-      return handleArchiveEvidence(payload);
-    default:
-      return jsonResponse({ ok: false, error: 'Unknown action: ' + action });
+  var ss = SpreadsheetApp.openById(getProp('SPREADSHEET_ID'));
+  var existing = ss.getSheetByName(name);
+
+  if (existing) {
+    return jsonResponse({ ok: true, user: name, classes: readSheetData(ss, name, 'Kelas'), students: readSheetData(ss, name, 'Murid') });
   }
+
+  // Create sheets for new user
+  var userSheet = ss.insertSheet(name);
+  setupUserSheet(ss, name);
+
+  // Also add to Users registry
+  ensureUsersSheet(ss);
+  appendRow(ss, 'Users', [name, new Date().toISOString()]);
+
+  return jsonResponse({ ok: true, user: name, classes: [], students: [], newUser: true });
 }
 
-// --- Bootstrap ---
+function setupUserSheet(ss, userName) {
+  var sheet = ss.getSheetByName(userName);
+  if (!sheet) return;
 
-function handleGetBootstrapData() {
-  const cache = CacheService.getScriptCache();
-  const cached = cache.get('bootstrapData');
-  if (cached) return jsonResponse(JSON.parse(cached));
+  // Row 1: Headers for classes A-Q etc
+  sheet.getRange('A1:Q1').setValues([['class_name', 'class_type', 'student_id', 'student_name', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
+  sheet.getRange('D1').setValue('student_id');
+  sheet.getRange('E1').setValue('student_name');
 
-  const data = {
-    subjects: readSheetData('Subjects'),
-    classes: readSheetData('Classes'),
-    students: readSheetData('Students'),
-  };
+  // Actually let's use a simpler layout
+  // I'll store data in tab-separated format in each user's sheet
+  // Better: create two ranges within the same sheet
 
-  cache.put('bootstrapData', JSON.stringify({ ok: true, data: data }), CACHE_TTL);
-  return jsonResponse({ ok: true, data: data });
+  var headers = [
+    ['NAMA KELAS', 'JENIS KELAS', '', 'NAMA MURID']
+  ];
+  sheet.getRange('A1:D1').setValues(headers);
+}
+
+// --- Get Bootstrap Data ---
+function handleGetBootstrapData(p) {
+  var userName = (p.userName || '').trim();
+  if (!userName) return jsonResponse({ ok: false, error: 'User required' });
+
+  var ss = SpreadsheetApp.openById(getProp('SPREADSHEET_ID'));
+  var sheet = ss.getSheetByName(userName);
+  if (!sheet) return jsonResponse({ ok: false, error: 'User not found' });
+
+  var data = sheet.getDataRange().getValues();
+  var classes = {};
+  var students = [];
+
+  for (var i = 1; i < data.length; i++) {
+    var className = String(data[i][0] || '').trim();
+    var classType = String(data[i][1] || '').trim();
+    var studentName = String(data[i][3] || '').trim();
+
+    if (className && !classes[className]) {
+      classes[className] = { class_name: className, class_type: classType, year: classType || 'Tahun 1' };
+    }
+    if (studentName) {
+      students.push({ student_name: studentName, class_name: className });
+    }
+  }
+
+  var classList = Object.keys(classes).map(function(k) { return classes[k]; });
+
+  return jsonResponse({ ok: true, classes: classList, students: students });
+}
+
+// --- Upload Students from Excel ---
+function handleUploadStudents(p) {
+  var userName = (p.userName || '').trim();
+  var rows = p.rows || [];
+
+  if (!userName || !rows.length) return jsonResponse({ ok: false, error: 'Data diperlukan' });
+
+  var ss = SpreadsheetApp.openById(getProp('SPREADSHEET_ID'));
+  var sheet = ss.getSheetByName(userName);
+  if (!sheet) return jsonResponse({ ok: false, error: 'User sheet not found' });
+
+  // Clear old data but keep header
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 4).clearContent();
+
+  // Write new rows
+  for (var i = 0; i < rows.length; i++) {
+    sheet.getRange(i + 2, 1).setValue(rows[i].className || '');
+    sheet.getRange(i + 2, 2).setValue(rows[i].classType || '');
+    sheet.getRange(i + 2, 4).setValue(rows[i].studentName || '');
+  }
+
+  return jsonResponse({ ok: true, count: rows.length });
 }
 
 // --- List Evidence ---
+function handleListEvidence(p) {
+  var userName = (p.userName || '').trim();
+  if (!userName) return jsonResponse({ ok: false, items: [], nextOffset: 0 });
 
-function handleListEvidence(payload) {
-  const filters = payload.filters || {};
-  const limit = payload.limit || 20;
-  const offset = payload.offset || 0;
-
-  let all = readSheetData('Evidence');
+  var all = readSheetData(getSs(), 'Evidence');
   if (!Array.isArray(all)) all = [];
 
-  // filter
-  if (filters.subject_id) {
-    all = all.filter(function (row) { return row.subject_id === filters.subject_id; });
-  }
-  if (filters.class_id) {
-    all = all.filter(function (row) { return row.class_id === filters.class_id; });
-  }
-  if (filters.type) {
-    all = all.filter(function (row) { return row.evidence_type === filters.type; });
-  }
-  if (filters.student_id) {
-    all = all.filter(function (row) {
-      var ids = parseStudentIds(row.student_ids);
-      return ids.indexOf(filters.student_id) !== -1;
-    });
-  }
-  if (filters.from) {
-    all = all.filter(function (row) { return row.created_at >= filters.from; });
-  }
-  if (filters.to) {
-    all = all.filter(function (row) { return row.created_at <= filters.to; });
-  }
+  // Filter by user if stored
+  if (userName) all = all.filter(function(r) { return r.created_by === userName || !r.created_by; });
 
-  // sort newest first
-  all.sort(function (a, b) {
-    if (a.created_at > b.created_at) return -1;
-    if (a.created_at < b.created_at) return 1;
-    return 0;
-  });
-
+  all.sort(function(a, b) { return a.created_at > b.created_at ? -1 : 1; });
+  var limit = p.limit || 20;
+  var offset = p.offset || 0;
   var items = all.slice(offset, offset + limit);
-  var nextOffset = offset + limit < all.length ? offset + limit : 0;
 
-  return jsonResponse({ ok: true, items: items, nextOffset: nextOffset });
+  return jsonResponse({ ok: true, items: items, nextOffset: offset + limit < all.length ? offset + limit : 0 });
 }
 
 // --- Upload Evidence ---
+function handleUploadEvidence(p) {
+  var m = p.metadata, f = p.file, userName = (p.userName || '').trim();
+  if (!m || !m.subject_id || !m.class_id || !m.student_ids || !m.activity_title)
+    return jsonResponse({ ok: false, error: 'Subjek, kelas, murid, tajuk wajib' });
 
-function handleUploadEvidence(payload) {
-  var metadata = payload.metadata;
-  var file = payload.file;
+  var dec = Utilities.base64Decode(f.base64);
+  var blob = Utilities.newBlob(dec, f.mimeType, f.name);
 
-  if (!metadata || !file) {
-    return jsonResponse({ ok: false, error: 'Metadata dan file diperlukan' });
-  }
-  if (!metadata.subject_id || !metadata.class_id || !metadata.student_ids || !metadata.activity_title) {
-    return jsonResponse({ ok: false, error: 'Subjek, kelas, murid dan tajuk aktiviti wajib diisi' });
-  }
+  var folder = getOrCreateFolder(getProp('ROOT_FOLDER_ID'), '' + new Date().getFullYear());
+  folder = getOrCreateFolder(folder.getId(), m.subject_id);
+  folder = getOrCreateFolder(folder.getId(), m.class_id);
+  var df = folder.createFile(blob);
+  df.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
-  // validate size
-  var estimatedBytes = Math.ceil(file.base64.length * 0.75);
-  if (metadata.evidence_type === 'image' && estimatedBytes > 500 * 1024) {
-    return jsonResponse({ ok: false, error: 'Gambar melebihi had 500KB' });
-  }
-  if (metadata.evidence_type === 'video' && estimatedBytes > 10 * 1024 * 1024) {
-    return jsonResponse({ ok: false, error: 'Video melebihi had 10MB' });
-  }
-  if (metadata.evidence_type === 'video' && (metadata.duration_seconds || 0) > 90) {
-    return jsonResponse({ ok: false, error: 'Video melebihi had 90 saat' });
-  }
+  var eid = 'ev-' + df.getId();
+  appendRow(getSs(), 'Evidence', [
+    eid, new Date().toISOString(), m.subject_id, m.class_id, JSON.stringify(m.student_ids),
+    m.activity_title, m.notes || '', m.evidence_type, f.name, df.getId(), df.getUrl(),
+    '', '', f.mimeType, m.file_size_bytes || 0, m.duration_seconds || '', 'active', userName
+  ]);
 
-  // decode and upload to Drive
-  var decoded = Utilities.base64Decode(file.base64);
-  var blob = Utilities.newBlob(decoded, file.mimeType, file.name);
-
-  var folder = getOrCreateFolder(getRootFolderId(), new Date().getFullYear().toString());
-  folder = getOrCreateFolder(folder.getId(), getSubjectName(metadata.subject_id));
-  folder = getOrCreateFolder(folder.getId(), getClassName(metadata.class_id));
-
-  var driveFile = folder.createFile(blob);
-  driveFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-  var evidenceId = 'ev-' + driveFile.getId();
-  var payloadUrl = driveFile.getUrl();
-
-  // write to sheet
-  var row = [
-    evidenceId,
-    new Date().toISOString(),
-    metadata.subject_id,
-    metadata.class_id,
-    JSON.stringify(metadata.student_ids),
-    metadata.activity_title,
-    metadata.notes || '',
-    metadata.evidence_type,
-    file.name,
-    driveFile.getId(),
-    payloadUrl,
-    '',
-    '',
-    file.mimeType,
-    metadata.file_size_bytes || estimatedBytes,
-    metadata.duration_seconds || '',
-    'active',
-    Session.getActiveUser().getEmail() || '',
-  ];
-
-  appendRow('Evidence', row);
-
-  return jsonResponse({
-    ok: true,
-    evidence_id: evidenceId,
-    file_url: payloadUrl,
-  });
-}
-
-// --- Update ---
-
-function handleUpdateEvidence(payload) {
-  // place holder: patch status / notes
-  // Not implemented yet for MVP
-  return jsonResponse({ ok: true });
-}
-
-function handleArchiveEvidence(payload) {
-  // place holder: set status=archived
-  return jsonResponse({ ok: true });
+  return jsonResponse({ ok: true, evidence_id: eid, file_url: df.getUrl() });
 }
 
 // --- Helpers ---
+function getSs() { return SpreadsheetApp.openById(getProp('SPREADSHEET_ID')); }
+function getProp(key) { return PropertiesService.getScriptProperties().getProperty(key); }
 
-function getRootFolderId() {
-  var id = PropertiesService.getScriptProperties().getProperty('ROOT_FOLDER_ID');
-  if (!id) throw new Error('ROOT_FOLDER_ID not set in Script Properties');
-  return id;
+function getOrCreateFolder(pid, name) {
+  var p = pid ? DriveApp.getFolderById(pid) : DriveApp.getRootFolder();
+  var fs = p.getFoldersByName(name);
+  return fs.hasNext() ? fs.next() : p.createFolder(name);
 }
 
-function getSpreadsheetId() {
-  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
-  if (!id) throw new Error('SPREADSHEET_ID not set in Script Properties');
-  return id;
-}
-
-function getOrCreateFolder(parentId, name) {
-  var parent = parentId ? DriveApp.getFolderById(parentId) : DriveApp.getRootFolder();
-  var folders = parent.getFoldersByName(name);
-  if (folders.hasNext()) return folders.next();
-  return parent.createFolder(name);
-}
-
-function getSubjectName(subjectId) {
-  var subjects = readSheetData('Subjects');
-  var found = subjects.filter(function (s) { return s.subject_id === subjectId; });
-  return found.length > 0 ? found[0].subject_name : subjectId;
-}
-
-function getClassName(classId) {
-  var classes = readSheetData('Classes');
-  var found = classes.filter(function (c) { return c.class_id === classId; });
-  return found.length > 0 ? found[0].class_name : classId;
-}
-
-function readSheetData(sheetName) {
-  var ss = SpreadsheetApp.openById(getSpreadsheetId());
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return [];
-
-  var data = sheet.getDataRange().getValues();
-  if (data.length < 2) return [];
-
-  var headers = data[0].map(function (h) { return String(h).trim(); });
+function readSheetData(ss, sheetName, headerCol) {
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) return [];
+  var d = sh.getDataRange().getValues();
+  if (d.length < 2) return [];
+  var h = d[0].map(function(v) { return String(v).trim(); });
   var rows = [];
-  for (var i = 1; i < data.length; i++) {
+  for (var i = 1; i < d.length; i++) {
     var row = {};
-    for (var j = 0; j < headers.length; j++) {
-      var val = data[i][j];
-      if (val instanceof Date) val = val.toISOString();
-      row[headers[j]] = val;
-    }
+    for (var j = 0; j < h.length; j++) { if (h[j]) row[h[j]] = d[i][j]; }
     rows.push(row);
   }
   return rows;
 }
 
-function appendRow(sheetName, row) {
-  var ss = SpreadsheetApp.openById(getSpreadsheetId());
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error('Sheet not found: ' + sheetName);
-  sheet.appendRow(row);
+function appendRow(ss, sheetName, row) {
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) {
+    sh = ss.insertSheet(sheetName);
+    sh.appendRow(['evidence_id', 'created_at', 'subject_id', 'class_id', 'student_ids', 'activity_title', 'notes', 'evidence_type', 'file_name', 'file_id', 'file_url', 'thumbnail_file_id', 'thumbnail_url', 'mime_type', 'file_size_bytes', 'duration_seconds', 'status', 'created_by']);
+  }
+  sh.appendRow(row);
 }
 
-function parseStudentIds(val) {
-  if (!val) return [];
-  try {
-    return JSON.parse(val);
-  } catch (e) {
-    return String(val).split(',').map(function (s) { return s.trim(); });
+function ensureUsersSheet(ss) {
+  var sh = ss.getSheetByName('Users');
+  if (!sh) {
+    sh = ss.insertSheet('Users');
+    sh.getRange('A1:B1').setValues([['user_name', 'created_at']]);
   }
 }
 
-function jsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+function jsonResponse(d) {
+  return ContentService.createTextOutput(JSON.stringify(d)).setMimeType(ContentService.MimeType.JSON);
 }
