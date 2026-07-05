@@ -16,10 +16,11 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     if (!file) return;
 
     setStatus('processing');
+    setError('');
+    setPreview([]);
 
     try {
       const buf = await file.arrayBuffer();
-
       const result = await parseExcel(buf);
       setPreview(result.slice(0, 20));
       setCount(result.length);
@@ -37,6 +38,13 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     }
   }
 
+  function resetPicker() {
+    setStatus('idle');
+    setError('');
+    setPreview([]);
+    setCount(0);
+  }
+
   return (
     <div className="login-screen">
       <div className="login-card">
@@ -46,12 +54,13 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
           Ini kali pertama anda. Muat naik senarai murid dari fail Excel (.xlsx).
         </p>
         <p className="login-warning">
-          Pastikan fail ada kolum: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>JENIS KELAS</strong>.
+          Fail macam JBA / senarai murid sekolah OK — app cari sendiri baris header{' '}
+          <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>JENIS KELAS</strong> (tak kena baris 1 pun boleh).
         </p>
 
         {status === 'processing' && <p className="capture-loading">Memproses fail...</p>}
 
-        {status === 'idle' && (
+        {(status === 'idle' || status === 'error') && (
           <label className="primary-action" style={{ textAlign: 'center', cursor: 'pointer' }}>
             Pilih Fail Excel
             <input accept=".xlsx,.xls" hidden onChange={handleFile} type="file" />
@@ -96,7 +105,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
         {status === 'error' && (
           <>
             <p className="capture-error">{error}</p>
-            <button className="primary-action" onClick={() => setStatus('idle')} type="button">
+            <button className="primary-action" onClick={resetPicker} type="button">
               Cuba Lagi
             </button>
           </>
@@ -109,40 +118,86 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
 const th: React.CSSProperties = { padding: '0.4rem', textAlign: 'left', fontWeight: 800, borderBottom: '2px solid var(--border)' };
 const td: React.CSSProperties = { padding: '0.3rem 0.4rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
 
+function normHeader(cell: unknown): string {
+  return String(cell ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+    .replace(/\.$/, '');
+}
+
+function colIndexForNama(headers: string[]): number {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    if (h === 'NAMA') return i;
+    if (h.includes('NAMA MURID') && !h.includes('KELAS')) return i;
+  }
+  return -1;
+}
+
+function colIndexForKelas(headers: string[]): number {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    if (h === 'NAMA KELAS' || h === 'KELAS') return i;
+  }
+  return -1;
+}
+
+function colIndexForJenis(headers: string[]): number {
+  for (let i = 0; i < headers.length; i++) {
+    if (headers[i] === 'JENIS KELAS') return i;
+  }
+  return -1;
+}
+
 async function parseExcel(buf: ArrayBuffer): Promise<{ className: string; classType: string; studentName: string }[]> {
-  // Use SheetJS via CDN or dynamic import
-  // For now, use a simple approach with xlsx
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
-  const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' }) as unknown[][];
 
-  // Find headers
-  const firstRow = rows[0] || {};
-  const headers = Object.keys(firstRow).map((k) => k.trim().toUpperCase());
+  let headerRowIdx = -1;
+  let namaIdx = -1;
+  let kelasIdx = -1;
+  let jenisIdx = -1;
 
-  let namaIdx = -1, kelasIdx = -1, jenisIdx = -1;
-
-  for (let i = 0; i < headers.length; i++) {
-    const h = headers[i];
-    if (h === 'NAMA' || h.includes('NAMA MURID')) namaIdx = i;
-    if (h === 'NAMA KELAS' || h === 'KELAS') kelasIdx = i;
-    if (h === 'JENIS KELAS') jenisIdx = i;
+  const scanLimit = Math.min(matrix.length, 40);
+  for (let r = 0; r < scanLimit; r++) {
+    const row = matrix[r] || [];
+    const headers = row.map(normHeader);
+    const ni = colIndexForNama(headers);
+    const ki = colIndexForKelas(headers);
+    if (ni >= 0 && ki >= 0) {
+      headerRowIdx = r;
+      namaIdx = ni;
+      kelasIdx = ki;
+      jenisIdx = colIndexForJenis(headers);
+      break;
+    }
   }
 
-  if (namaIdx === -1 || kelasIdx === -1) throw new Error('Header NAMA / NAMA KELAS tidak dijumpai');
+  if (headerRowIdx === -1) {
+    throw new Error(
+      'Header NAMA / NAMA KELAS tidak dijumpai. Pastikan fail ada baris tajuk kolum (contoh fail JBA: baris dengan NAMA, NAMA KELAS).',
+    );
+  }
 
   const result: { className: string; classType: string; studentName: string }[] = [];
 
-  for (const row of rows) {
-    const vals = Object.values(row);
-    const studentName = String(vals[namaIdx] || '').trim();
-    const className = String(vals[kelasIdx] || '').trim();
-    const classType = jenisIdx >= 0 ? String(vals[jenisIdx] || '').trim() : '';
+  for (let r = headerRowIdx + 1; r < matrix.length; r++) {
+    const row = matrix[r] || [];
+    const studentName = String(row[namaIdx] ?? '').trim();
+    const className = String(row[kelasIdx] ?? '').trim();
+    const classType = jenisIdx >= 0 ? String(row[jenisIdx] ?? '').trim() : '';
 
-    if (studentName && className) {
-      result.push({ className, classType, studentName });
-    }
+    if (!studentName || !className) continue;
+    if (normHeader(studentName) === 'NAMA') continue;
+
+    result.push({ className, classType, studentName });
+  }
+
+  if (!result.length) {
+    throw new Error('Tiada murid dijumpai selepas baris header. Semak kolum NAMA dan NAMA KELAS ada data.');
   }
 
   return result;
