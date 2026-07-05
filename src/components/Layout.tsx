@@ -24,6 +24,10 @@ export function Layout({ activeTab, children, onTabChange }: LayoutProps) {
       <NavTabs activeTab={activeTab} onChange={onTabChange} />
 
       <main className="app-content">{children}</main>
+
+      <footer className="app-footer">
+        <p>MVP Evidence Pentaksiran</p>
+      </footer>
     </div>
   );
 }

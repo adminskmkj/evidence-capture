@@ -6,10 +6,11 @@
 - [x] Task 2 Types
 - [x] Task 3 Seed Data
 - [x] Task 4 Layout
+- [x] Task 5 Dashboard
 
 ## Current
 
-Task 5 - Dashboard
+Task 6 - Evidence Form
 
 ## Blockers
 
@@ -17,7 +18,7 @@ None
 
 ## Next
 
-Task 6 - Evidence Form
+Task 7 - Image Capture and Compression
 
 ## Latest Verification
 
@@ -39,6 +40,13 @@ Task 6 - Evidence Form
 - Updated `src/App.tsx` for tab state and layout shell.
 - Updated `src/styles.css` for touch-friendly responsive navigation and layout.
 - Browser/manual Playwright check confirmed header, 4 navigation tabs, and dashboard content render.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Task 5 Dashboard verified on 2026-07-06.
+- Created `src/screens/Dashboard.tsx` with stat cards, subject grid, class shortcuts.
+- Updated `src/App.tsx` to route Dashboard tab with shortcut context passing.
+- Updated `src/styles.css` to neo-brutalist design with dashboard-hero, stat-grid, primary-action, class-shortcut styles.
+- Updated `src/components/Layout.tsx` with footer.
 - `npm run build` passed.
 - `npm run lint` passed.
 
