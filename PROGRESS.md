@@ -3,10 +3,11 @@
 ## Completed
 
 - [x] Task 1 Scaffold
+- [x] Task 2 Types
 
 ## Current
 
-Task 2 - Types
+Task 3 - Seed Data
 
 ## Blockers
 
@@ -14,7 +15,7 @@ None
 
 ## Next
 
-Task 3 - Seed Data
+Task 4 - Layout
 
 ## Latest Verification
 
@@ -22,6 +23,10 @@ Task 3 - Seed Data
 - `npm install` passed.
 - `npm run build` passed.
 - `npm run lint` passed after adding `eslint.config.js`.
+- Task 2 Types verified on 2026-07-05.
+- Created `src/types/domain.ts` with Subject, ClassGroup, Student, EvidenceItem, upload payload, and bootstrap data types.
+- `npm run build` passed.
+- `npm run lint` passed.
 
 ## Update Rules
 

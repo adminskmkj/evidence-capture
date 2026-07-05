@@ -3,7 +3,7 @@
 Track every implementation task here. Update this file after each task passes verification.
 
 - [x] Task 1 Scaffold
-- [ ] Task 2 Types
+- [x] Task 2 Types
 - [ ] Task 3 Seed Data
 - [ ] Task 4 Layout
 - [ ] Task 5 Dashboard
