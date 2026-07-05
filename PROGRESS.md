@@ -10,10 +10,11 @@
 - [x] Task 6 Evidence Form
 - [x] Task 7 Image Capture and Compression
 - [x] Task 8 Video Recorder
+- [x] Task 9 Media Preview
 
 ## Current
 
-Task 9 - Media Preview
+Task 10 - Apps Script API Client
 
 ## Blockers
 
@@ -21,7 +22,7 @@ None
 
 ## Next
 
-Task 9 - Media Preview
+Task 11 - Google Apps Script Backend
 
 ## Latest Verification
 
