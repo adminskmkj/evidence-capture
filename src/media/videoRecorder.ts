@@ -27,12 +27,12 @@ export async function createVideoRecorder(): Promise<VideoRecorderControl> {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { exact: 'environment' }, width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 24 } },
-      audio: true,
+      audio: { sampleRate: 44100, channelCount: 1, echoCancellation: true },
     });
   } catch {
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 24 } },
-      audio: true,
+      audio: { sampleRate: 44100, channelCount: 1, echoCancellation: true },
     });
   }
 
@@ -41,7 +41,7 @@ export async function createVideoRecorder(): Promise<VideoRecorderControl> {
   const recorder = new MediaRecorder(stream, {
     mimeType,
     videoBitsPerSecond: 700_000,
-    audioBitsPerSecond: 64_000,
+    audioBitsPerSecond: 128_000,
   });
 
   const chunks: Blob[] = [];
