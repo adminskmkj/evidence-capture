@@ -1,0 +1,23 @@
+# Rules
+
+- Never remove existing features.
+- Never break previous tasks.
+- Always run build before marking a task complete.
+- Update `PROGRESS.md` after every task.
+- Update `TASKS.md` after every task.
+- Keep code modular.
+- Prefer reusable components.
+- Never skip verification.
+- Implement only the selected task before moving on.
+- Do not mark a task complete if TypeScript build fails.
+- Do not ignore lint or build errors.
+- Preserve the media limits:
+  - Images must be <= 500KB after compression.
+  - Videos must be <= 90 seconds.
+  - Videos must target 7–10MB.
+  - Videos must not exceed 10MB.
+- Do not autoplay videos in the gallery or detail screen.
+- Do not load all evidence media at once; use filtering, pagination, or lazy loading.
+- Keep Google Drive as the MVP file storage.
+- Keep Google Sheets as the MVP metadata store.
+- Supabase is not part of MVP unless explicitly requested later.
