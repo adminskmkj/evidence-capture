@@ -4,10 +4,11 @@
 
 - [x] Task 1 Scaffold
 - [x] Task 2 Types
+- [x] Task 3 Seed Data
 
 ## Current
 
-Task 3 - Seed Data
+Task 4 - Layout
 
 ## Blockers
 
@@ -15,7 +16,7 @@ None
 
 ## Next
 
-Task 4 - Layout
+Task 5 - Dashboard
 
 ## Latest Verification
 
@@ -25,6 +26,11 @@ Task 4 - Layout
 - `npm run lint` passed after adding `eslint.config.js`.
 - Task 2 Types verified on 2026-07-05.
 - Created `src/types/domain.ts` with Subject, ClassGroup, Student, EvidenceItem, upload payload, and bootstrap data types.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Task 3 Seed Data verified on 2026-07-05.
+- Created `src/data/seed.ts` with 5 subjects, 9 classes, subject-class links, and 6 demo students per class.
+- Browser/manual Playwright check confirmed all subjects and mapped classes render from seed data.
 - `npm run build` passed.
 - `npm run lint` passed.
 
