@@ -4,19 +4,23 @@ export interface CameraStream {
 }
 
 export async function getCameraStream(): Promise<CameraStream> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: 'environment',
-      width: { ideal: 1280 },
-      height: { ideal: 720 },
-    },
-    audio: false,
-  });
+  let stream: MediaStream;
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: 'environment' } },
+      audio: false,
+    });
+  } catch {
+    // Fallback: some devices/desktop don't support exact
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    });
+  }
 
   return {
     stream,
-    stop: () => {
-      stream.getTracks().forEach((t) => t.stop());
-    },
+    stop: () => stream.getTracks().forEach((t) => t.stop()),
   };
 }

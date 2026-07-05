@@ -22,14 +22,19 @@ export interface VideoRecorderControl {
 }
 
 export async function createVideoRecorder(): Promise<VideoRecorderControl> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      width: { ideal: 854 },
-      height: { ideal: 480 },
-      frameRate: { ideal: 15, max: 24 },
-    },
-    audio: true,
-  });
+  let stream: MediaStream;
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: 'environment' }, width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 24 } },
+      audio: true,
+    });
+  } catch {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 854 }, height: { ideal: 480 }, frameRate: { ideal: 15, max: 24 } },
+      audio: true,
+    });
+  }
 
   const mimeType = CODECS.find((codec) => MediaRecorder.isTypeSupported(codec)) ?? CODECS[2];
 
