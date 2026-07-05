@@ -5,10 +5,11 @@
 - [x] Task 1 Scaffold
 - [x] Task 2 Types
 - [x] Task 3 Seed Data
+- [x] Task 4 Layout
 
 ## Current
 
-Task 4 - Layout
+Task 5 - Dashboard
 
 ## Blockers
 
@@ -16,7 +17,7 @@ None
 
 ## Next
 
-Task 5 - Dashboard
+Task 6 - Evidence Form
 
 ## Latest Verification
 
@@ -31,6 +32,13 @@ Task 5 - Dashboard
 - Task 3 Seed Data verified on 2026-07-05.
 - Created `src/data/seed.ts` with 5 subjects, 9 classes, subject-class links, and 6 demo students per class.
 - Browser/manual Playwright check confirmed all subjects and mapped classes render from seed data.
+- `npm run build` passed.
+- `npm run lint` passed.
+- Task 4 Layout verified on 2026-07-05.
+- Created `src/components/Layout.tsx`, `src/components/NavTabs.tsx`, and `src/navigation/tabs.ts`.
+- Updated `src/App.tsx` for tab state and layout shell.
+- Updated `src/styles.css` for touch-friendly responsive navigation and layout.
+- Browser/manual Playwright check confirmed header, 4 navigation tabs, and dashboard content render.
 - `npm run build` passed.
 - `npm run lint` passed.
 

@@ -5,7 +5,7 @@ Track every implementation task here. Update this file after each task passes ve
 - [x] Task 1 Scaffold
 - [x] Task 2 Types
 - [x] Task 3 Seed Data
-- [ ] Task 4 Layout
+- [x] Task 4 Layout
 - [ ] Task 5 Dashboard
 - [ ] Task 6 Evidence Form
 - [ ] Task 7 Image Capture and Compression
