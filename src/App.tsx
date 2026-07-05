@@ -3,44 +3,36 @@ import { Layout } from './components/Layout';
 import type { NavTabId } from './components/NavTabs';
 import { Dashboard } from './screens/Dashboard';
 import { AddEvidence } from './screens/AddEvidence';
-
-const tabTitles: Record<NavTabId, string> = {
-  dashboard: 'Dashboard',
-  'add-evidence': 'Tambah Evidence',
-  gallery: 'Galeri',
-  settings: 'Tetapan',
-};
-
-const tabDescriptions: Record<NavTabId, string> = {
-  dashboard: 'Ringkasan data demo untuk subjek, kelas dan murid.',
-  'add-evidence': 'Pilih subjek, kelas, murid dan isi maklumat evidence.',
-  gallery: 'Placeholder untuk senarai evidence yang akan difilter.',
-  settings: 'Placeholder untuk konfigurasi Google Apps Script dan import data.',
-};
+import { Gallery } from './screens/Gallery';
+import { EvidenceDetail } from './screens/EvidenceDetail';
+import { Settings } from './screens/Settings';
+import type { EvidenceItem } from './types/domain';
 
 interface PendingEvidenceContext {
   subjectId?: string;
   classId?: string;
 }
 
-function PlaceholderPanel({ tabId }: { tabId: NavTabId }) {
-  return (
-    <section className="placeholder-panel">
-      <p className="eyebrow">{tabTitles[tabId]}</p>
-      <h2>{tabTitles[tabId]}</h2>
-      <p>{tabDescriptions[tabId]}</p>
-    </section>
-  );
-}
-
 function App() {
   const [activeTab, setActiveTab] = useState<NavTabId>('dashboard');
   const [pendingEvidenceContext, setPendingEvidenceContext] =
     useState<PendingEvidenceContext>();
+  const [selectedEvidence, setSelectedEvidence] = useState<EvidenceItem | null>(null);
+  const [galleryTab, setGalleryTab] = useState<'list' | 'detail'>('list');
 
   function handleStartEvidence(subjectId?: string, classId?: string) {
     setPendingEvidenceContext({ subjectId: subjectId || undefined, classId });
     setActiveTab('add-evidence');
+  }
+
+  function handleViewEvidence(item: EvidenceItem) {
+    setSelectedEvidence(item);
+    setGalleryTab('detail');
+  }
+
+  function handleBackToGallery() {
+    setSelectedEvidence(null);
+    setGalleryTab('list');
   }
 
   function renderContent() {
@@ -54,8 +46,15 @@ function App() {
             initialSubjectId={pendingEvidenceContext?.subjectId}
           />
         );
+      case 'gallery':
+        if (galleryTab === 'detail' && selectedEvidence) {
+          return <EvidenceDetail item={selectedEvidence} onBack={handleBackToGallery} />;
+        }
+        return <Gallery onViewEvidence={handleViewEvidence} />;
+      case 'settings':
+        return <Settings />;
       default:
-        return <PlaceholderPanel tabId={activeTab} />;
+        return null;
     }
   }
 

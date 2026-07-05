@@ -12,10 +12,17 @@
 - [x] Task 8 Video Recorder
 - [x] Task 9 Media Preview
 - [x] Task 10 Apps Script API Client
+- [x] Task 11 Google Apps Script Backend
+- [x] Task 12 Frontend Upload Integration
+- [x] Task 13 Gallery
+- [x] Task 14 Evidence Detail Viewer
+- [x] Task 15 Settings/Import Placeholder
+- [x] Task 16 Deployment Documentation
+- [x] Task 17 Validation
 
 ## Current
 
-Task 11 - Google Apps Script Backend
+All tasks complete. Definition of Done satisfied.
 
 ## Blockers
 

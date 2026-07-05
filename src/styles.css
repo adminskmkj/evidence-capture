@@ -487,6 +487,91 @@ button {
   font-weight: 700;
 }
 
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.evidence-card {
+  border: 3px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 100ms ease, box-shadow 100ms ease;
+}
+
+.evidence-card:hover,
+.evidence-card:focus-visible {
+  box-shadow: var(--shadow-hover);
+  transform: translate(-2px, -2px);
+}
+
+.evidence-thumb {
+  display: block;
+  width: 100%;
+  height: 140px;
+  border-bottom: 2px solid var(--border);
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.evidence-thumb--video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+.evidence-card__body {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.85rem;
+}
+
+.evidence-card__body strong {
+  font-weight: 800;
+}
+
+.evidence-card__body small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.evidence-meta {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.evidence-meta dt {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.evidence-meta dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.evidence-meta a {
+  color: var(--accent);
+}
+
+.capture-panel h3 {
+  margin: 0 0 0.75rem;
+  color: var(--fg);
+  font-size: 1.2rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.form-chip select {
+  appearance: auto;
+}
+
 .capture-panel {
   border: 3px solid var(--border);
   background: var(--card);

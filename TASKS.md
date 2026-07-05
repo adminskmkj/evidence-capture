@@ -12,13 +12,13 @@ Track every implementation task here. Update this file after each task passes ve
 - [x] Task 8 Video Recorder
 - [x] Task 9 Media Preview
 - [x] Task 10 Apps Script API Client
-- [ ] Task 11 Google Apps Script Backend
-- [ ] Task 12 Frontend Upload Integration
-- [ ] Task 13 Gallery
-- [ ] Task 14 Evidence Detail Viewer
-- [ ] Task 15 Settings/Import Placeholder
-- [ ] Task 16 Deployment Documentation
-- [ ] Task 17 Validation
+- [x] Task 11 Google Apps Script Backend
+- [x] Task 12 Frontend Upload Integration
+- [x] Task 13 Gallery
+- [x] Task 14 Evidence Detail Viewer
+- [x] Task 15 Settings/Import Placeholder
+- [x] Task 16 Deployment Documentation
+- [x] Task 17 Validation
 
 ## Task Notes
 
