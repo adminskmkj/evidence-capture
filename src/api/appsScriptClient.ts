@@ -13,9 +13,8 @@ export function getUser(): string {
   if (!_userName) _userName = localStorage.getItem('evidence_user') || '';
   return _userName;
 }
-export function clearUser() { _userName = ''; localStorage.removeItem('evidence_user'); }
 
-function xhrPost(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+function xhrPost(payload: Record<string, unknown>, skipUser = false): Promise<Record<string, unknown>> {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
@@ -24,13 +23,13 @@ function xhrPost(payload: Record<string, unknown>): Promise<Record<string, unkno
     xhr.onerror = () => resolve({ ok: false, error: 'Rangkaian gagal' });
     xhr.ontimeout = () => resolve({ ok: false, error: 'Timeout' });
     xhr.timeout = 30000;
-    payload.userName = getUser();
+    if (!skipUser) payload.userName = getUser();
     xhr.send(JSON.stringify(payload));
   });
 }
 
 export async function login(name: string): Promise<{ ok: boolean; newUser?: boolean; classes?: unknown[]; students?: unknown[]; error?: string }> {
-  const resp = await xhrPost({ action: 'login', userName: name });
+  const resp = await xhrPost({ action: 'login', userName: name }, true);
   if (resp.ok) {
     setUser(name);
     return { ok: true, newUser: !!resp.newUser, classes: resp.classes as unknown[], students: resp.students as unknown[] };
@@ -39,13 +38,13 @@ export async function login(name: string): Promise<{ ok: boolean; newUser?: bool
 }
 
 export async function getBootstrapData(): Promise<{ classes: unknown[]; students: unknown[] }> {
-  const resp = await xhrPost({ action: 'getBootstrapData', userName: getUser() });
+  const resp = await xhrPost({ action: 'getBootstrapData' });
   if (resp.ok) return { classes: resp.classes as unknown[] || [], students: resp.students as unknown[] || [] };
   return { classes: [], students: [] };
 }
 
 export async function uploadStudents(rows: { className: string; classType: string; studentName: string }[]) {
-  const resp = await xhrPost({ action: 'uploadStudents', rows, userName: getUser() });
+  const resp = await xhrPost({ action: 'uploadStudents', rows });
   return { ok: !!resp.ok, count: (resp.count as number) || 0, error: resp.error as string };
 }
 
@@ -55,7 +54,7 @@ export interface ListEvidenceFilters {
 export interface ListEvidenceResult { items: EvidenceItem[]; nextOffset: number }
 
 export async function listEvidence(filters: ListEvidenceFilters = {}, limit = 20, offset = 0): Promise<ListEvidenceResult> {
-  const resp = await xhrPost({ action: 'listEvidence', filters: filters as Record<string, unknown>, limit, offset, userName: getUser() });
+  const resp = await xhrPost({ action: 'listEvidence', filters: filters as Record<string, unknown>, limit, offset });
   if (!resp.ok || !resp.items) return { items: [], nextOffset: 0 };
   return { items: resp.items as EvidenceItem[], nextOffset: (resp.nextOffset as number) || 0 };
 }
