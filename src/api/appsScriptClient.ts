@@ -40,14 +40,41 @@ function xhrPost(
   });
 }
 
+export function getAppsScriptUrl(): string {
+  return APPS_SCRIPT_URL;
+}
+
+export function getAppsScriptUrlHint(): string {
+  const u = APPS_SCRIPT_URL;
+  const m = u.match(/\/macros\/s\/([^/]+)\//);
+  return m ? `…/s/${m[1].slice(0, 8)}…/exec` : u.slice(0, 40) + '…';
+}
+
+export async function pingBackend(): Promise<{
+  ok: boolean;
+  version?: string;
+  actions?: string[];
+  error?: string;
+}> {
+  const resp = await xhrPost({ action: 'ping' }, { skipUser: true, timeoutMs: 20000 });
+  if (resp.ok) {
+    return {
+      ok: true,
+      version: resp.version as string | undefined,
+      actions: resp.actions as string[] | undefined,
+    };
+  }
+  return { ok: false, error: mapAppsScriptError(resp.error as string) };
+}
+
 export function mapAppsScriptError(message: string | undefined): string {
   const m = String(message || '').trim();
   if (!m) return 'Ralat server';
   if (m === 'Unknown action' || m.includes('Unknown action')) {
     return (
-      'Backend Google Apps Script LAMA (tiada saveSubjects/uploadStudents). ' +
-      'Buka script.google.com → paste apps-script/Code.gs → Deploy → Manage deployments → Edit → New version → Deploy. ' +
-      'Semak: buka URL /exec dalam browser, mesti ada "version":"2026-07-06".'
+      'Backend Google Apps Script LAMA (tiada saveSubjects/ping). ' +
+      'script.google.com → paste Code.gs → Manage deployments → Edit → New version → Deploy. ' +
+      'Di Tetapan tekan Semak backend — mesti version 2026-07-06 + saveSubjects.'
     );
   }
   return m;

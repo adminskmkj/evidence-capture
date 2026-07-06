@@ -100,6 +100,23 @@ Frontend Vercel **sudah baru**, tetapi **Web App Google masih kod lama** jika an
    - `"actions"` termasuk `saveSubjects` dan `uploadStudents`
 6. Cuba semula **Simpan setup** / **Simpan murid** dalam app.
 
+### Ralat `Script function not found: doGet`
+
+Ini bermakna **URL Web App yang anda buka masih versi lama** (atau projek salah), bukan semestinya app rosak.
+
+1. Di [script.google.com](https://script.google.com/) → buka projek yang betul.
+2. Panel kiri: pastikan ada fail **`Code.gs`** — buka, scroll atas, mesti nampak `function doGet()` (baris ~5).
+   - Kalau **tiada** → copy semula **seluruh** `apps-script/Code.gs` dari repo → tampal → **Simpan** (Ctrl+S).
+3. Dropdown fungsi (atas editor) pilih **`doGet`** → klik **Run** → benarkan akses jika diminta.
+   - Kalau Run **berjaya** → kod OK; masalah hanya pada **deployment**.
+4. **Deploy → Manage deployments** → **pensel** pada deployment **Web app** yang URL-nya sama dengan `VITE_APPS_SCRIPT_URL` di Vercel.
+5. **Version: New version** → **Deploy**.
+6. Copy URL dari dialog deploy itu → buka dalam tab baru.
+
+**Nota:** `doGet` hanya untuk **semak** backend. App sebenar guna **POST** (`doPost`). Walaupun `doGet` gagal di URL lama, selepas redeploy betul, **Simpan setup** patut jalan jika `saveSubjects` ada dalam `Code.gs`.
+
+Kalau anda pernah buat **New deployment** (bukan Edit), URL baru ≠ URL lama — kemas kini `VITE_APPS_SCRIPT_URL` di Vercel dengan URL baru, redeploy Vercel.
+
 ---
 
 ## 4. Vercel

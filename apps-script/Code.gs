@@ -16,6 +16,13 @@ function doPost(e) {
     const p = JSON.parse(e.postData.contents);
     var action = p.action;
 
+    if (action === 'ping') {
+      return jsonResponse({
+        ok: true,
+        version: '2026-07-06',
+        actions: ['ping', 'login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
+      });
+    }
     if (action === 'login') return handleLogin(p);
     if (action === 'getBootstrapData') return handleGetBootstrapData(p);
     if (action === 'uploadStudents') return handleUploadStudents(p);

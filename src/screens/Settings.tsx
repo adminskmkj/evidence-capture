@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MAX_IMAGE_BYTES } from '../media/imageCompression';
 import { MAX_VIDEO_BYTES, MAX_VIDEO_SECONDS } from '../media/videoRecorder';
-import { getUser } from '../api/appsScriptClient';
+import { getAppsScriptUrlHint, getUser, pingBackend } from '../api/appsScriptClient';
 import { useUserData } from '../context/UserDataContext';
 import { SubjectSetupPanel } from '../components/SubjectSetupPanel';
 import { ImportStudents } from './ImportStudents';
@@ -14,6 +14,25 @@ export function Settings({ onLogout }: SettingsProps) {
   const user = getUser();
   const { loading, allClasses, classes, students, subjects, teachingSlots, refresh, error } = useUserData();
   const [showImport, setShowImport] = useState(false);
+  const [backendCheck, setBackendCheck] = useState<string | null>(null);
+  const [backendBusy, setBackendBusy] = useState(false);
+
+  async function runBackendCheck() {
+    setBackendBusy(true);
+    setBackendCheck(null);
+    const r = await pingBackend();
+    setBackendBusy(false);
+    if (r.ok) {
+      const hasSave = r.actions?.includes('saveSubjects');
+      setBackendCheck(
+        hasSave
+          ? `OK — backend ${r.version}, saveSubjects ada. Simpan setup patut jalan.`
+          : `Backend ${r.version} tetapi saveSubjects TIADA — paste Code.gs penuh & redeploy.`,
+      );
+    } else {
+      setBackendCheck(r.error || 'Gagal');
+    }
+  }
 
   if (showImport) {
     return (
@@ -46,6 +65,25 @@ export function Settings({ onLogout }: SettingsProps) {
             Log keluar
           </button>
         )}
+      </div>
+
+      <div className="capture-panel" style={{ marginTop: '1rem' }}>
+        <h3>Google Backend (Apps Script)</h3>
+        <p className="context-note">
+          URL app guna: <code>{getAppsScriptUrlHint()}</code>
+          {getAppsScriptUrlHint().includes('PLACEHOLDER') && (
+            <strong> — Vercel tiada VITE_APPS_SCRIPT_URL! Set env & redeploy Vercel.</strong>
+          )}
+        </p>
+        <button className="secondary-action" disabled={backendBusy} onClick={() => void runBackendCheck()} type="button">
+          {backendBusy ? 'Menyemak…' : 'Semak backend'}
+        </button>
+        {backendCheck && <p className={backendCheck.startsWith('OK') ? 'context-note' : 'capture-error'}>{backendCheck}</p>}
+        <p className="context-note" style={{ marginTop: '0.5rem' }}>
+          Jika <strong>Unknown action</strong>: di script.google.com padam fail .gs lain, tinggal satu <code>Code.gs</code> (~350 baris),
+          Run <code>doGet</code>, kemudian Deploy → Manage deployments → pensel → <strong>New version</strong> → Deploy.
+          Pastikan URL deployment = nilai <code>VITE_APPS_SCRIPT_URL</code> di Vercel.
+        </p>
       </div>
 
       <div className="capture-panel" style={{ marginTop: '1rem' }}>
