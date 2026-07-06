@@ -187,7 +187,7 @@ function writeUserRows(sheet, rows) {
       rows[i].studentName || ''
     ]);
   }
-  sheet.getRange(2, 1, 1 + values.length, 4).setValues(values);
+  sheet.getRange(2, 1, values.length, 4).setValues(values);
 }
 
 // --- Subjek per pengguna (sheet SubjekPengguna) ---
