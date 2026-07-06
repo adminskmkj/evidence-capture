@@ -96,7 +96,7 @@ export function Settings({ onLogout }: SettingsProps) {
         <h3>Setup kelas &amp; subjek</h3>
         <p className="context-note" style={{ marginBottom: '0.75rem' }}>
           <strong>Tiada popup.</strong> Butang D1–D6 / PRA + senarai kelas terus di bawah. Versi UI:{' '}
-          <code>2026-07-06c</code> (Semak backend ikut writeRows-v3, bukan v2)
+          <code>2026-07-06d-prefix-fix</code> (Semak backend ikut writeRows-v3, bukan v2)
         </p>
         <SubjectSetupPanel
           key={teachingSlots.map((s) => s.slot_id).join('|') || 'empty'}
