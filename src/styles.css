@@ -979,6 +979,41 @@ button {
   font-weight: 700;
 }
 
+.darjah-filter-block {
+  margin: 0.75rem 0 1rem;
+}
+
+.darjah-filter-label {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.darjah-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.darjah-filter-btn {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--border, #cbd5e1);
+  background: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.darjah-filter-btn--active {
+  background: var(--accent, #2563eb);
+  border-color: var(--accent, #2563eb);
+  color: #fff;
+}
+
 .setup-class-pick {
   width: 100%;
   min-height: 3rem;
