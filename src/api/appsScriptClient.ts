@@ -15,22 +15,27 @@ export function getUser(): string {
   return _userName;
 }
 
-function xhrPost(payload: Record<string, unknown>, skipUser = false): Promise<Record<string, unknown>> {
+function xhrPost(
+  payload: Record<string, unknown>,
+  opts?: { skipUser?: boolean; timeoutMs?: number },
+): Promise<Record<string, unknown>> {
+  const skipUser = opts?.skipUser ?? false;
+  const timeoutMs = opts?.timeoutMs ?? 30000;
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
     xhr.setRequestHeader('Content-Type', 'text/plain');
     xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ ok: false, error: 'Invalid response' }); } };
     xhr.onerror = () => resolve({ ok: false, error: 'Rangkaian gagal' });
-    xhr.ontimeout = () => resolve({ ok: false, error: 'Timeout' });
-    xhr.timeout = 30000;
+    xhr.ontimeout = () => resolve({ ok: false, error: 'Timeout — cuba kurang kelas atau cuba lagi' });
+    xhr.timeout = timeoutMs;
     if (!skipUser) payload.userName = getUser();
     xhr.send(JSON.stringify(payload));
   });
 }
 
 export async function login(name: string): Promise<{ ok: boolean; newUser?: boolean; classes?: unknown[]; students?: unknown[]; error?: string }> {
-  const resp = await xhrPost({ action: 'login', userName: name }, true);
+  const resp = await xhrPost({ action: 'login', userName: name }, { skipUser: true });
   if (resp.ok) {
     setUser(name);
     return { ok: true, newUser: !!resp.newUser, classes: resp.classes as unknown[], students: resp.students as unknown[] };
@@ -44,9 +49,27 @@ export async function getBootstrapData(): Promise<{ classes: unknown[]; students
   return { classes: [], students: [] };
 }
 
-export async function uploadStudents(rows: { className: string; classType: string; studentName: string }[]) {
-  const resp = await xhrPost({ action: 'uploadStudents', rows });
-  return { ok: !!resp.ok, count: (resp.count as number) || 0, error: resp.error as string };
+export type StudentImportRow = { className: string; classType: string; studentName: string };
+
+const UPLOAD_CHUNK = 250;
+
+export async function uploadStudents(
+  rows: StudentImportRow[],
+  mode: 'replace' | 'merge' = 'merge',
+): Promise<{ ok: boolean; count: number; error?: string }> {
+  if (!rows.length) return { ok: false, count: 0, error: 'Tiada murid dipilih' };
+
+  let total = 0;
+  for (let i = 0; i < rows.length; i += UPLOAD_CHUNK) {
+    const chunk = rows.slice(i, i + UPLOAD_CHUNK);
+    const resp = await xhrPost(
+      { action: 'uploadStudents', rows: chunk, mode },
+      { timeoutMs: 120000 },
+    );
+    if (!resp.ok) return { ok: false, count: total, error: (resp.error as string) || 'Gagal upload' };
+    total += (resp.count as number) || chunk.length;
+  }
+  return { ok: true, count: total };
 }
 
 export interface ListEvidenceFilters {
@@ -86,7 +109,7 @@ export async function uploadEvidence(
         file_size_bytes: media.data.sizeBytes, duration_seconds: media.type === 'video' ? media.data.durationSeconds : undefined,
       },
       file: { name: fileName, mimeType: media.type === 'image' ? 'image/jpeg' : 'video/webm', base64 },
-    });
+    }, { timeoutMs: 120000 });
     return resp.ok ? { ok: true, evidence_id: resp.evidence_id as string } : { ok: false, error: (resp.error as string) || 'Upload gagal' };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Ralat rangkaian' };

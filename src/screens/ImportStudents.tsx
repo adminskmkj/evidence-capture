@@ -1,112 +1,170 @@
-import { useState } from 'react';
-import { uploadStudents } from '../api/appsScriptClient';
+import { useMemo, useState } from 'react';
+import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
 
 interface ImportStudentsProps {
   onDone: () => void;
 }
 
+type Step = 'idle' | 'parsing' | 'pick-classes' | 'uploading' | 'done' | 'error';
+
+interface ClassSummary {
+  className: string;
+  classType: string;
+  count: number;
+}
+
 export function ImportStudents({ onDone }: ImportStudentsProps) {
-  const [status, setStatus] = useState<'idle' | 'processing' | 'done' | 'error'>('idle');
-  const [count, setCount] = useState(0);
+  const [step, setStep] = useState<Step>('idle');
+  const [allRows, setAllRows] = useState<StudentImportRow[]>([]);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
-  const [preview, setPreview] = useState<{ className: string; classType: string; studentName: string }[]>([]);
+  const [savedCount, setSavedCount] = useState(0);
+
+  const classSummaries = useMemo(() => summarizeClasses(allRows), [allRows]);
+
+  const selectedRows = useMemo(
+    () => allRows.filter((r) => selected[r.className]),
+    [allRows, selected],
+  );
+
+  const selectedClassCount = useMemo(
+    () => classSummaries.filter((c) => selected[c.className]).length,
+    [classSummaries, selected],
+  );
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
-    setStatus('processing');
+    setStep('parsing');
     setError('');
-    setPreview([]);
+    setAllRows([]);
+    setSelected({});
 
     try {
       const buf = await file.arrayBuffer();
       const result = await parseExcel(buf);
-      setPreview(result.slice(0, 20));
-      setCount(result.length);
-
-      const resp = await uploadStudents(result);
-      if (resp.ok) {
-        setStatus('done');
-      } else {
-        setError(resp.error || 'Gagal upload');
-        setStatus('error');
-      }
+      setAllRows(result);
+      setStep('pick-classes');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ralat baca fail');
-      setStatus('error');
+      setStep('error');
     }
   }
 
-  function resetPicker() {
-    setStatus('idle');
+  function toggleClass(className: string) {
+    setSelected((prev) => ({ ...prev, [className]: !prev[className] }));
+  }
+
+  function selectAll(on: boolean) {
+    const next: Record<string, boolean> = {};
+    for (const c of classSummaries) next[c.className] = on;
+    setSelected(next);
+  }
+
+  async function handleSave() {
+    if (!selectedRows.length) {
+      setError('Pilih sekurang-kurangnya satu kelas.');
+      setStep('error');
+      return;
+    }
+    setStep('uploading');
     setError('');
-    setPreview([]);
-    setCount(0);
+    const resp = await uploadStudents(selectedRows, 'merge');
+    if (resp.ok) {
+      setSavedCount(selectedRows.length);
+      setStep('done');
+    } else {
+      setError(resp.error || 'Gagal simpan');
+      setStep('error');
+    }
+  }
+
+  function resetAll() {
+    setStep('idle');
+    setError('');
+    setAllRows([]);
+    setSelected({});
+    setSavedCount(0);
   }
 
   return (
     <div className="login-screen">
-      <div className="login-card">
+      <div className="login-card import-card">
         <p className="eyebrow">Import Murid</p>
         <h1>Muat Naik Senarai Murid</h1>
         <p className="hero-copy">
-          Ini kali pertama anda. Muat naik senarai murid dari fail Excel (.xlsx).
+          Fail sekolah ada ramai kelas — <strong>pilih kelas yang anda ajar sahaja</strong>. App hanya simpan kelas yang ditick.
         </p>
         <p className="login-warning">
-          Fail macam JBA / senarai murid sekolah OK — app cari sendiri baris header{' '}
-          <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>JENIS KELAS</strong> (tak kena baris 1 pun boleh).
+          Header carian automatik: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>JENIS KELAS</strong> (fail JBA OK).
         </p>
 
-        {status === 'processing' && <p className="capture-loading">Memproses fail...</p>}
-
-        {(status === 'idle' || status === 'error') && (
+        {(step === 'idle' || step === 'error') && (
           <label className="primary-action" style={{ textAlign: 'center', cursor: 'pointer' }}>
             Pilih Fail Excel
             <input accept=".xlsx,.xls" hidden onChange={handleFile} type="file" />
           </label>
         )}
 
-        {preview.length > 0 && (
-          <div style={{ marginTop: '1rem' }}>
-            <p className="context-note">{count} murid dijumpai. Preview 20 pertama:</p>
-            <div style={{ maxHeight: 200, overflow: 'auto', border: '2px solid var(--border)', marginTop: '0.5rem' }}>
-              <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--bg)' }}>
-                    <th style={th}>Kelas</th>
-                    <th style={th}>Jenis</th>
-                    <th style={th}>Nama</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.map((r, i) => (
-                    <tr key={i} style={{ borderTop: '1px solid var(--border)' }}>
-                      <td style={td}>{r.className}</td>
-                      <td style={td}>{r.classType}</td>
-                      <td style={td}>{r.studentName}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        {step === 'parsing' && <p className="capture-loading">Membaca fail…</p>}
+
+        {step === 'pick-classes' && (
+          <>
+            <p className="context-note">
+              {allRows.length} murid dalam fail · {classSummaries.length} kelas. Tick kelas anda, kemudian simpan.
+            </p>
+            <div className="import-class-actions">
+              <button className="form-chip" onClick={() => selectAll(true)} type="button">Pilih semua</button>
+              <button className="form-chip" onClick={() => selectAll(false)} type="button">Kosongkan</button>
             </div>
-          </div>
+            <ul className="import-class-list">
+              {classSummaries.map((c) => (
+                <li key={c.className}>
+                  <label className="import-class-row">
+                    <input
+                      checked={!!selected[c.className]}
+                      onChange={() => toggleClass(c.className)}
+                      type="checkbox"
+                    />
+                    <span className="import-class-name">{c.className}</span>
+                    <span className="import-class-meta">{c.classType || '—'} · {c.count} murid</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+            <button
+              className="primary-action"
+              disabled={!selectedRows.length}
+              onClick={() => void handleSave()}
+              type="button"
+            >
+              Simpan {selectedRows.length} murid ({selectedClassCount} kelas)
+            </button>
+          </>
         )}
 
-        {status === 'done' && (
+        {step === 'uploading' && (
+          <p className="capture-loading">
+            Menyimpan {selectedRows.length} murid… (boleh ambil ~1 minit, jangan tutup)
+          </p>
+        )}
+
+        {step === 'done' && (
           <>
-            <p className="context-note">✅ {count} murid berjaya diimport!</p>
+            <p className="context-note">✅ {savedCount} murid dari {selectedClassCount} kelas disimpan.</p>
             <button className="primary-action" onClick={onDone} type="button">
               Mula Guna App
             </button>
           </>
         )}
 
-        {status === 'error' && (
+        {step === 'error' && (
           <>
             <p className="capture-error">{error}</p>
-            <button className="primary-action" onClick={resetPicker} type="button">
-              Cuba Lagi
+            <button className="primary-action" onClick={allRows.length ? () => setStep('pick-classes') : resetAll} type="button">
+              {allRows.length ? 'Kembali pilih kelas' : 'Cuba Lagi'}
             </button>
           </>
         )}
@@ -115,8 +173,15 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   );
 }
 
-const th: React.CSSProperties = { padding: '0.4rem', textAlign: 'left', fontWeight: 800, borderBottom: '2px solid var(--border)' };
-const td: React.CSSProperties = { padding: '0.3rem 0.4rem', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
+  const map = new Map<string, ClassSummary>();
+  for (const r of rows) {
+    const existing = map.get(r.className);
+    if (existing) existing.count += 1;
+    else map.set(r.className, { className: r.className, classType: r.classType, count: 1 });
+  }
+  return [...map.values()].sort((a, b) => a.className.localeCompare(b.className, 'ms'));
+}
 
 function normHeader(cell: unknown): string {
   return String(cell ?? '')
@@ -150,7 +215,7 @@ function colIndexForJenis(headers: string[]): number {
   return -1;
 }
 
-async function parseExcel(buf: ArrayBuffer): Promise<{ className: string; classType: string; studentName: string }[]> {
+async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -182,7 +247,7 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ className: string; classT
     );
   }
 
-  const result: { className: string; classType: string; studentName: string }[] = [];
+  const result: StudentImportRow[] = [];
 
   for (let r = headerRowIdx + 1; r < matrix.length; r++) {
     const row = matrix[r] || [];

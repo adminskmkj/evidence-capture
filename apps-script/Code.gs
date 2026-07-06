@@ -88,6 +88,7 @@ function buildUserBootstrap(ss, userName) {
 function handleUploadStudents(p) {
   var userName = (p.userName || '').trim();
   var rows = p.rows || [];
+  var mode = (p.mode || 'merge').toLowerCase();
 
   if (!userName || !rows.length) return jsonResponse({ ok: false, error: 'Data diperlukan' });
 
@@ -95,18 +96,57 @@ function handleUploadStudents(p) {
   var sheet = ss.getSheetByName(userName);
   if (!sheet) return jsonResponse({ ok: false, error: 'User sheet not found' });
 
-  // Clear old data but keep header
-  var lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 4).clearContent();
-
-  // Write new rows
-  for (var i = 0; i < rows.length; i++) {
-    sheet.getRange(i + 2, 1).setValue(rows[i].className || '');
-    sheet.getRange(i + 2, 2).setValue(rows[i].classType || '');
-    sheet.getRange(i + 2, 4).setValue(rows[i].studentName || '');
+  var merged = [];
+  if (mode === 'replace') {
+    merged = rows;
+  } else {
+    var incomingClasses = {};
+    for (var i = 0; i < rows.length; i++) {
+      var cn = String(rows[i].className || '').trim();
+      if (cn) incomingClasses[cn] = true;
+    }
+    var existing = readUserRows(sheet);
+    for (var j = 0; j < existing.length; j++) {
+      if (!incomingClasses[existing[j].className]) merged.push(existing[j]);
+    }
+    for (var k = 0; k < rows.length; k++) merged.push(rows[k]);
   }
 
-  return jsonResponse({ ok: true, count: rows.length });
+  writeUserRows(sheet, merged);
+  return jsonResponse({ ok: true, count: rows.length, total: merged.length });
+}
+
+function readUserRows(sheet) {
+  var data = sheet.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < data.length; i++) {
+    var className = String(data[i][0] || '').trim();
+    var studentName = String(data[i][3] || '').trim();
+    if (!className && !studentName) continue;
+    out.push({
+      className: className,
+      classType: String(data[i][1] || '').trim(),
+      studentName: studentName
+    });
+  }
+  return out;
+}
+
+function writeUserRows(sheet, rows) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 4).clearContent();
+  if (!rows.length) return;
+
+  var values = [];
+  for (var i = 0; i < rows.length; i++) {
+    values.push([
+      rows[i].className || '',
+      rows[i].classType || '',
+      '',
+      rows[i].studentName || ''
+    ]);
+  }
+  sheet.getRange(2, 1, values.length, 4).setValues(values);
 }
 
 // --- List Evidence ---
