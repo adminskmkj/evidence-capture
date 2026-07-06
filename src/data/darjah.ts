@@ -75,7 +75,7 @@ function parseDarjahNumber(text: string): number | null {
 }
 
 function parseMalayDarjahWord(text: string): number | null {
-  const w = text.toLowerCase().replace(/[^a-z]/g, '');
+  const t = String(text || '').trim().toLowerCase();
   const map: Record<string, number> = {
     satu: 1,
     dua: 2,
@@ -90,7 +90,21 @@ function parseMalayDarjahWord(text: string): number | null {
     five: 5,
     six: 6,
   };
-  return map[w] ?? null;
+
+  const phrase = t.match(/\b(?:tahun|tingkatan|darjah)\s+(satu|dua|tiga|empat|lima|enam)\b/i);
+  if (phrase) return map[phrase[1].toLowerCase()] ?? null;
+
+  const word = t.match(/\b(satu|dua|tiga|empat|lima|enam)\b/i);
+  if (word) return map[word[1].toLowerCase()] ?? null;
+
+  const compact = t.replace(/[^a-z]/g, '');
+  if (compact.startsWith('tahun') || compact.startsWith('tingkatan') || compact.startsWith('darjah')) {
+    for (const [name, num] of Object.entries(map)) {
+      if (compact.endsWith(name)) return num;
+    }
+  }
+
+  return map[compact] ?? null;
 }
 
 function parseDarjahFromClassName(className: string): number | null {

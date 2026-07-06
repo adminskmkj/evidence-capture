@@ -141,9 +141,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
             </p>
             <DarjahFilterBar onChange={setDarjahFilter} title="① Ketik darjah — tapis senarai kelas" value={darjahFilter} />
             {darjahColumnFound ? (
-              <p className="context-note">
-                Kolum <strong>DARJAH</strong> atau <strong>TAHUN / TINGKATAN</strong> dijumpai dalam Excel.
-              </p>
+              <p className="context-note">Kolum <strong>TAHUN / TINGKATAN</strong> dijumpai (cth. <strong>TAHUN SATU</strong> → Darjah 1).</p>
             ) : (
               <p className="context-note">Kolum DARJAH tidak dijumpai — darjah dari nama kelas (cth. 1 BESTARI).</p>
             )}
