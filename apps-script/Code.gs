@@ -87,7 +87,7 @@ function buildUserBootstrap(ss, userName) {
   var students = [];
 
   for (var i = 1; i < data.length; i++) {
-    var className = String(data[i][0] || '').trim();
+    var className = normClassKey(String(data[i][0] || '').trim());
     var classType = String(data[i][1] || '').trim();
     var tahun = String(data[i][2] || '').trim();
     var studentName = String(data[i][3] || '').trim();
@@ -97,11 +97,12 @@ function buildUserBootstrap(ss, userName) {
         classes[className] = { class_name: className, class_type: classType, year: tahun };
         yearVotes[className] = {};
       }
+      if (classType && !classes[className].class_type) classes[className].class_type = classType;
       if (tahun) {
         yearVotes[className][tahun] = (yearVotes[className][tahun] || 0) + 1;
       }
     }
-    if (studentName) {
+    if (studentName && className) {
       students.push({ student_name: studentName, class_name: className });
     }
   }
@@ -157,7 +158,13 @@ function handleUploadStudents(p) {
 }
 
 function normClassKey(name) {
-  return String(name || '').trim().replace(/\s+/g, ' ');
+  var s = String(name || '').trim().replace(/\s+/g, ' ');
+  if (!s) return '';
+  var parts = s.split(/[\s\-\/]+/).filter(function(p) { return p; });
+  if (parts.length >= 2 && parts[0].toUpperCase() === 'AL') {
+    return ('AL-' + parts.slice(1).join('-')).toUpperCase();
+  }
+  return parts.join(' ').toUpperCase();
 }
 
 /** Satu murid sekali sahaja per kelas (nama + kelas). */
@@ -168,11 +175,11 @@ function dedupeUserRows(rows) {
     var cn = normClassKey(rows[i].className);
     var sn = String(rows[i].studentName || '').trim().replace(/\s+/g, ' ');
     if (!cn || !sn) continue;
-    var key = cn.toLowerCase() + '\x1f' + sn.toLowerCase();
+    var key = cn + '\x1f' + sn.toLowerCase();
     if (seen[key]) continue;
     seen[key] = true;
     out.push({
-      className: cn,
+      className: normClassKey(rows[i].className),
       classType: rows[i].classType || '',
       yearLevel: rows[i].yearLevel || '',
       studentName: sn,

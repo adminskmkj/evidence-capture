@@ -1,5 +1,6 @@
 import type { ClassGroup, Student } from '../types/domain';
 import { normalizeDarjahLabel } from './darjah';
+import { canonicalClassKey, normalizeClassName } from '../utils/className';
 
 export interface ApiUserClass {
   class_name?: string;
@@ -29,21 +30,27 @@ export function normalizeUserBootstrap(
 ): { classes: ClassGroup[]; students: Student[] } {
   const classMeta = new Map<string, { class_name: string; jenis_kelas: string; year_level: string }>();
 
+  const upsertClass = (rawName: string, classType: string, year: string) => {
+    const className = normalizeClassName(rawName);
+    if (!className) return;
+    const metaKey = canonicalClassKey(className);
+    const y = normalizeDarjahLabel(year, className);
+    const existing = classMeta.get(metaKey);
+    if (!existing) {
+      classMeta.set(metaKey, {
+        class_name: className,
+        jenis_kelas: classType,
+        year_level: y,
+      });
+      return;
+    }
+    if (!existing.jenis_kelas && classType) existing.jenis_kelas = classType;
+    if (existing.year_level === '—' && y !== '—') existing.year_level = y;
+  };
+
   for (const raw of apiClasses) {
     const c = raw as ApiUserClass;
-    const className = String(c.class_name || '').trim();
-    if (!className) continue;
-    if (!classMeta.has(className)) {
-      classMeta.set(className, {
-        class_name: className,
-        jenis_kelas: String(c.class_type || '').trim(),
-        year_level: normalizeDarjahLabel(String(c.year || ''), className),
-      });
-    } else if (classMeta.get(className)!.year_level === '—') {
-      const meta = classMeta.get(className)!;
-      const y = normalizeDarjahLabel(String(c.year || ''), className);
-      if (y !== '—') meta.year_level = y;
-    }
+    upsertClass(String(c.class_name || ''), String(c.class_type || '').trim(), String(c.year || ''));
   }
 
   const students: Student[] = [];
@@ -52,34 +59,27 @@ export function normalizeUserBootstrap(
   for (const raw of apiStudents) {
     const s = raw as ApiUserStudent;
     const studentName = String(s.student_name || '').trim().replace(/\s+/g, ' ');
-    const className = String(s.class_name || '').trim().replace(/\s+/g, ' ');
+    const className = normalizeClassName(String(s.class_name || ''));
     if (!studentName || !className) continue;
 
-    const dedupeKey = `${className.toLowerCase()}\x1f${studentName.toLowerCase()}`;
+    const dedupeKey = `${canonicalClassKey(className)}\x1f${studentName.toLowerCase()}`;
     if (seenStudent.has(dedupeKey)) continue;
     seenStudent.add(dedupeKey);
 
-    if (!classMeta.has(className)) {
-      classMeta.set(className, {
-        class_name: className,
-        jenis_kelas: '',
-        year_level: normalizeDarjahLabel('', className),
-      });
-    }
+    upsertClass(className, '', '');
 
     const classId = slugId(className);
-    const studentId = `${classId}--${slugId(studentName)}`;
     students.push({
-      student_id: studentId,
+      student_id: `${classId}--${slugId(studentName)}`,
       student_name: studentName,
       class_id: classId,
       active: true,
     });
   }
 
-  const classes: ClassGroup[] = Array.from(classMeta.entries()).map(([className, meta]) => ({
-    class_id: slugId(className),
-    class_name: className,
+  const classes: ClassGroup[] = Array.from(classMeta.values()).map((meta) => ({
+    class_id: slugId(meta.class_name),
+    class_name: meta.class_name,
     year_level: meta.year_level,
     jenis_kelas: meta.jenis_kelas || undefined,
     active: true,

@@ -3,6 +3,7 @@ import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
 import { DarjahFilterBar } from '../components/DarjahFilterBar';
 import { formatYearLevelDisplay, normalizeDarjahLabel } from '../data/darjah';
 import { type DarjahFilterKey, filterClassesByDarjah } from '../data/darjahFilter';
+import { canonicalClassKey, normalizeClassName } from '../utils/className';
 
 interface ImportStudentsProps {
   onDone: () => void;
@@ -39,7 +40,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   }, [classSummaries, darjahFilter]);
 
   const selectedRows = useMemo(
-    () => allRows.filter((r) => selected[r.className]),
+    () => allRows.filter((r) => selected[normalizeClassName(r.className)]),
     [allRows, selected],
   );
 
@@ -220,14 +221,17 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
 function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
   const map = new Map<string, ClassSummary & { yearCounts: Record<string, number> }>();
   for (const r of rows) {
+    const className = normalizeClassName(r.className);
+    const key = canonicalClassKey(className);
     const y = formatYearLevelDisplay(r.yearLevel || '');
-    const existing = map.get(r.className);
+    const existing = map.get(key);
     if (existing) {
       existing.count += 1;
       if (y !== '—') existing.yearCounts[y] = (existing.yearCounts[y] || 0) + 1;
+      if (!existing.classType && r.classType) existing.classType = r.classType;
     } else {
-      map.set(r.className, {
-        className: r.className,
+      map.set(key, {
+        className,
         classType: r.classType,
         darjah: y,
         count: 1,
@@ -327,9 +331,9 @@ function dedupeImportRows(rows: StudentImportRow[]): StudentImportRow[] {
   const seen = new Set<string>();
   const out: StudentImportRow[] = [];
   for (const r of rows) {
-    const cn = r.className.trim().replace(/\s+/g, ' ');
+    const cn = normalizeClassName(r.className);
     const sn = r.studentName.trim().replace(/\s+/g, ' ');
-    const key = `${cn.toLowerCase()}\x1f${sn.toLowerCase()}`;
+    const key = `${canonicalClassKey(cn)}\x1f${sn.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push({ ...r, className: cn, studentName: sn });
@@ -395,7 +399,8 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
     if (!studentName || !className) continue;
     if (normHeader(studentName) === 'NAMA') continue;
 
-    result.push({ className, classType, studentName, yearLevel });
+    const normalizedClass = normalizeClassName(className);
+    result.push({ className: normalizedClass, classType, studentName, yearLevel });
   }
 
   const deduped = dedupeImportRows(result);
