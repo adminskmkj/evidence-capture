@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useUserData } from '../context/UserDataContext';
-import { getClassesForSubject } from '../data/subjectSetup';
+import { findTeachingSlot, formatTeachingSlotLabel } from '../data/subjectSetup';
 import { SelectPopup } from './SelectPopup';
 
 export interface EvidenceFormData {
@@ -18,73 +18,87 @@ interface EvidenceFormProps {
   onOpenImport?: () => void;
 }
 
-export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSubmit, onOpenImport }: EvidenceFormProps) {
-  const { classes, subjects, getStudentsByClassId, loading } = useUserData();
-  const [subjectId, setSubjectId] = useState(initialSubjectId);
-  const [classId, setClassId] = useState(initialClassId);
+export function EvidenceForm({
+  initialSubjectId = '',
+  initialClassId = '',
+  onSubmit,
+  onOpenImport,
+}: EvidenceFormProps) {
+  const { teachingSlots, getStudentsByClassId, loading } = useUserData();
+
+  const initialSlot = useMemo(
+    () => findTeachingSlot(teachingSlots, initialSubjectId, initialClassId)?.slot_id ?? '',
+    [teachingSlots, initialSubjectId, initialClassId],
+  );
+
+  const [slotId, setSlotId] = useState(initialSlot);
   const [studentIds, setStudentIds] = useState<string[]>([]);
   const [activityTitle, setActivityTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [popup, setPopup] = useState<'subject' | 'class' | 'students' | null>(null);
+  const [popup, setPopup] = useState<'slot' | 'students' | null>(null);
 
-  const classOptions = useMemo(
-    () => (subjectId ? getClassesForSubject(subjectId, subjects, classes) : classes),
-    [subjectId, subjects, classes],
+  const selectedSlot = useMemo(
+    () => teachingSlots.find((s) => s.slot_id === slotId),
+    [teachingSlots, slotId],
   );
 
-  const resolvedClassId = classOptions.some((c) => c.class_id === classId) ? classId : '';
+  const classId = selectedSlot?.class_id ?? '';
 
   const availableStudents = useMemo(
-    () => (resolvedClassId ? getStudentsByClassId(resolvedClassId) : []),
-    [resolvedClassId, getStudentsByClassId],
+    () => (classId ? getStudentsByClassId(classId) : []),
+    [classId, getStudentsByClassId],
   );
 
   const isValid =
-    subjectId !== '' &&
-    resolvedClassId !== '' &&
+    !!selectedSlot &&
     studentIds.length > 0 &&
     activityTitle.trim().length > 0;
-  const subjectName = subjects.find((s) => s.subject_id === subjectId)?.subject_name || '';
-  const className = classes.find((c) => c.class_id === resolvedClassId)?.class_name || '';
+
+  const slotLabel = selectedSlot ? formatTeachingSlotLabel(selectedSlot) : '';
 
   function handleSubmit() {
-    if (!isValid) return;
-    onSubmit({ subjectId, classId: resolvedClassId, studentIds, activityTitle: activityTitle.trim(), notes: notes.trim() });
+    if (!isValid || !selectedSlot) return;
+    onSubmit({
+      subjectId: selectedSlot.subject_id,
+      classId: selectedSlot.class_id,
+      studentIds,
+      activityTitle: activityTitle.trim(),
+      notes: notes.trim(),
+    });
   }
 
   return (
     <div className="evidence-form">
       <fieldset className="form-group">
-        <legend>Subjek</legend>
-        <button className="select-trigger" onClick={() => setPopup('subject')} type="button">
-          {subjectName || <span className="select-trigger__placeholder">Pilih subjek</span>}
-        </button>
-      </fieldset>
-
-      <fieldset className="form-group">
-        <legend>Kelas (senarai anda)</legend>
-        {loading && <p className="context-note">Memuatkan kelas…</p>}
-        {!loading && classes.length === 0 && (
+        <legend>Subjek &amp; kelas (ikut setup Tetapan)</legend>
+        {loading && <p className="context-note">Memuatkan…</p>}
+        {!loading && teachingSlots.length === 0 && (
           <p className="capture-error">
-            Tiada kelas.{' '}
+            Tiada kombinasi subjek+kelas. Dalam <strong>Tetapan → Setup kelas &amp; subjek</strong>, pilih kelas
+            anda dan isi subjek (contoh SAINS), kemudian Simpan.
             {onOpenImport && (
-              <button className="text-button" onClick={onOpenImport} type="button">
-                Muat naik Excel
-              </button>
+              <>
+                {' '}
+                <button className="text-button" onClick={onOpenImport} type="button">
+                  Import murid
+                </button>
+              </>
             )}
           </p>
         )}
-        {!loading && subjects.length === 0 && (
-          <p className="capture-error">Tiada subjek. Setup dalam Tetapan.</p>
-        )}
-        {classes.length > 0 && (
-          <button className="select-trigger" onClick={() => setPopup('class')} type="button">
-            {className || <span className="select-trigger__placeholder">Pilih kelas</span>}
+        {teachingSlots.length > 0 && (
+          <button className="select-trigger" onClick={() => setPopup('slot')} type="button">
+            {slotLabel || <span className="select-trigger__placeholder">Pilih subjek &amp; kelas</span>}
           </button>
+        )}
+        {teachingSlots.length > 0 && (
+          <p className="context-note" style={{ marginTop: '0.35rem' }}>
+            Satu baris = satu subjek dalam satu kelas yang anda ajar ({teachingSlots.length} kombinasi).
+          </p>
         )}
       </fieldset>
 
-      {resolvedClassId && (
+      {classId && (
         <fieldset className="form-group">
           <legend>Murid ({studentIds.length} dipilih)</legend>
           <button className="select-trigger" onClick={() => setPopup('students')} type="button">
@@ -97,53 +111,85 @@ export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSub
 
       <fieldset className="form-group">
         <legend>Tajuk Aktiviti *</legend>
-        <input className="form-input" onChange={(e) => setActivityTitle(e.target.value)} placeholder="Contoh: Eksperimen magnet" type="text" value={activityTitle} />
+        <input
+          className="form-input"
+          onChange={(e) => setActivityTitle(e.target.value)}
+          placeholder="Contoh: Eksperimen magnet"
+          type="text"
+          value={activityTitle}
+        />
       </fieldset>
 
       <fieldset className="form-group">
         <legend>Catatan</legend>
-        <textarea className="form-textarea" onChange={(e) => setNotes(e.target.value)} placeholder="Catatan pentaksiran (pilihan)" rows={3} value={notes} />
+        <textarea
+          className="form-textarea"
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Catatan pentaksiran (pilihan)"
+          rows={3}
+          value={notes}
+        />
       </fieldset>
 
-      <SelectPopup open={popup === 'subject'} title="Pilih Subjek" onClose={() => setPopup(null)}>
-        {subjects.map((s) => (
+      <SelectPopup open={popup === 'slot'} title="Pilih subjek & kelas" onClose={() => setPopup(null)}>
+        {teachingSlots.map((slot) => (
           <button
-            className={`popup-item ${subjectId === s.subject_id ? 'popup-item--active' : ''}`}
-            key={s.subject_id}
-            onClick={() => { setSubjectId(s.subject_id); setClassId(''); setStudentIds([]); setPopup(null); }}
+            className={`popup-item ${slotId === slot.slot_id ? 'popup-item--active' : ''}`}
+            key={slot.slot_id}
+            onClick={() => {
+              setSlotId(slot.slot_id);
+              setStudentIds([]);
+              setPopup(null);
+            }}
             type="button"
-          >{s.subject_name}</button>
-        ))}
-      </SelectPopup>
-
-      <SelectPopup open={popup === 'class'} title="Pilih Kelas" onClose={() => setPopup(null)}>
-        {classOptions.map((c) => (
-          <button
-            className={`popup-item ${resolvedClassId === c.class_id ? 'popup-item--active' : ''}`}
-            key={c.class_id}
-            onClick={() => { setClassId(c.class_id); setStudentIds([]); setPopup(null); }}
-            type="button"
-          >{c.class_name}{c.year_level !== '—' ? ` (${c.year_level})` : ''}</button>
+          >
+            {formatTeachingSlotLabel(slot)}
+          </button>
         ))}
       </SelectPopup>
 
       <SelectPopup open={popup === 'students'} title="Pilih Murid" onClose={() => setPopup(null)}>
-        <button className="popup-item popup-item--small" onClick={() => { if (studentIds.length === availableStudents.length) { setStudentIds([]); } else { setStudentIds(availableStudents.map((s) => s.student_id)); } }} type="button">
+        <button
+          className="popup-item popup-item--small"
+          onClick={() => {
+            if (studentIds.length === availableStudents.length) {
+              setStudentIds([]);
+            } else {
+              setStudentIds(availableStudents.map((s) => s.student_id));
+            }
+          }}
+          type="button"
+        >
           {studentIds.length === availableStudents.length ? 'Nyahpilih semua' : 'Pilih semua'}
         </button>
         {availableStudents.map((stu) => (
           <button
             className={`popup-item ${studentIds.includes(stu.student_id) ? 'popup-item--active' : ''}`}
             key={stu.student_id}
-            onClick={() => setStudentIds((prev) => prev.includes(stu.student_id) ? prev.filter((id) => id !== stu.student_id) : [...prev, stu.student_id])}
+            onClick={() =>
+              setStudentIds((prev) =>
+                prev.includes(stu.student_id)
+                  ? prev.filter((id) => id !== stu.student_id)
+                  : [...prev, stu.student_id],
+              )
+            }
             type="button"
-          >{stu.student_name}{studentIds.includes(stu.student_id) ? ' ✓' : ''}</button>
+          >
+            {stu.student_name}
+            {studentIds.includes(stu.student_id) ? ' ✓' : ''}
+          </button>
         ))}
       </SelectPopup>
 
       <div className="form-actions">
-        <button className="primary-action" disabled={!isValid} onClick={handleSubmit} type="button">Seterusnya: Ambil Gambar / Rakam Video</button>
-        {!isValid && <p className="form-hint">Sila pilih subjek, kelas, sekurang-kurangnya seorang murid, dan isi tajuk aktiviti.</p>}
+        <button className="primary-action" disabled={!isValid} onClick={handleSubmit} type="button">
+          Seterusnya: Ambil Gambar / Rakam Video
+        </button>
+        {!isValid && (
+          <p className="form-hint">
+            Pilih kombinasi subjek+kelas dari setup anda, sekurang-kurangnya seorang murid, dan isi tajuk aktiviti.
+          </p>
+        )}
       </div>
     </div>
   );

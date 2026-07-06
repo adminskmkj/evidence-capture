@@ -142,6 +142,19 @@ export function subjectsToApiPayload(subjects: Subject[], classes: ClassGroup[])
   }));
 }
 
+export function formatTeachingSlotLabel(slot: TeachingSlot): string {
+  const y = slot.year_level && slot.year_level !== '—' ? ` (${slot.year_level})` : '';
+  return `${slot.subject_name} · ${slot.class_name}${y}`;
+}
+
+export function findTeachingSlot(
+  slots: TeachingSlot[],
+  subjectId: string,
+  classId: string,
+): TeachingSlot | undefined {
+  return slots.find((s) => s.subject_id === subjectId && s.class_id === classId);
+}
+
 export function getClassesForSubject(
   subjectId: string,
   subjects: Subject[],
