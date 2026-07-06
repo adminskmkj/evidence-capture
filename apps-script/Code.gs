@@ -6,7 +6,7 @@ function doGet() {
   return jsonResponse({
     ok: true,
     service: 'EvidencePentaksiran',
-    version: '2026-07-06',
+    version: '2026-07-06-writeRows-v2',
     actions: ['login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
   });
 }
@@ -19,7 +19,7 @@ function doPost(e) {
     if (action === 'ping') {
       return jsonResponse({
         ok: true,
-        version: '2026-07-06',
+        version: '2026-07-06-writeRows-v2',
         actions: ['ping', 'login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
       });
     }
@@ -207,7 +207,9 @@ function readUserRows(sheet) {
 
 function writeUserRows(sheet, rows) {
   var lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 4).clearContent();
+  if (lastRow > 1) {
+    sheet.getRange('A2:D' + lastRow).clearContent();
+  }
   if (!rows.length) return;
 
   var values = [];
@@ -219,7 +221,9 @@ function writeUserRows(sheet, rows) {
       rows[i].studentName || ''
     ]);
   }
-  sheet.getRange(2, 1, values.length, 4).setValues(values);
+  var n = values.length;
+  // Baris 1 = header; data bermula A2, tepat n baris (elak ralat 250 vs 251)
+  sheet.getRange('A2:D' + (1 + n)).setValues(values);
 }
 
 // --- Subjek per pengguna (sheet SubjekPengguna) ---

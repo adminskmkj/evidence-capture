@@ -94,7 +94,12 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
 
     const resp = await uploadStudents(selectedRows, 'merge');
     if (!resp.ok) {
-      setError(resp.error || 'Gagal simpan murid');
+      let msg = resp.error || 'Gagal simpan murid';
+      if (/does not match the number of rows/i.test(msg)) {
+        msg +=
+          ' — Backend Google Script masih versi lama. Buka Apps Script → Deploy → Manage deployments → Edit → New version → Deploy. Semak ping: version mesti ada writeRows-v2.';
+      }
+      setError(msg);
       setStep('error');
       return;
     }

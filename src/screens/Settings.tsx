@@ -24,10 +24,13 @@ export function Settings({ onLogout }: SettingsProps) {
     setBackendBusy(false);
     if (r.ok) {
       const hasSave = r.actions?.includes('saveSubjects');
+      const rowsFix = String(r.version || '').includes('writeRows-v2');
       setBackendCheck(
-        hasSave
-          ? `OK — backend ${r.version}, saveSubjects ada. Simpan setup patut jalan.`
-          : `Backend ${r.version} tetapi saveSubjects TIADA — paste Code.gs penuh & redeploy.`,
+        hasSave && rowsFix
+          ? `OK — backend ${r.version}, saveSubjects + tulis murid (writeRows-v2).`
+          : hasSave
+            ? `Backend ${r.version} — saveSubjects ada tetapi tulis murid mungkin lama. Redeploy Code.gs (writeRows-v2).`
+            : `Backend ${r.version} tetapi saveSubjects TIADA — paste Code.gs penuh & redeploy.`,
       );
     } else {
       setBackendCheck(r.error || 'Gagal');
