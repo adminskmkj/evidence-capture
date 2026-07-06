@@ -122,7 +122,8 @@ export async function saveSubjects(
   return resp.ok ? { ok: true } : { ok: false, error: mapAppsScriptError(resp.error as string) };
 }
 
-const UPLOAD_CHUNK = 250;
+/** Satu POST — elak chunk 250 yang picu ralat julat lama + merge berganda */
+const UPLOAD_CHUNK = 5000;
 
 export async function uploadStudents(
   rows: StudentImportRow[],
@@ -135,7 +136,7 @@ export async function uploadStudents(
     const chunk = rows.slice(i, i + UPLOAD_CHUNK);
     const resp = await xhrPost(
       { action: 'uploadStudents', rows: chunk, mode },
-      { timeoutMs: 120000 },
+      { timeoutMs: 180000 },
     );
     if (!resp.ok) return { ok: false, count: total, error: mapAppsScriptError(resp.error as string) };
     total += (resp.count as number) || chunk.length;

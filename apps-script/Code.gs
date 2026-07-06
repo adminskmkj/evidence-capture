@@ -6,7 +6,7 @@ function doGet() {
   return jsonResponse({
     ok: true,
     service: 'EvidencePentaksiran',
-    version: '2026-07-06-writeRows-v2',
+    version: '2026-07-06-writeRows-v3',
     actions: ['login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
   });
 }
@@ -19,7 +19,7 @@ function doPost(e) {
     if (action === 'ping') {
       return jsonResponse({
         ok: true,
-        version: '2026-07-06-writeRows-v2',
+        version: '2026-07-06-writeRows-v3',
         actions: ['ping', 'login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
       });
     }
@@ -153,8 +153,9 @@ function handleUploadStudents(p) {
     for (var k = 0; k < rows.length; k++) merged.push(rows[k]);
   }
 
-  writeUserRows(sheet, dedupeUserRows(merged));
-  return jsonResponse({ ok: true, count: rows.length, total: merged.length });
+  var toWrite = dedupeUserRows(merged);
+  writeUserRows(sheet, toWrite);
+  return jsonResponse({ ok: true, count: rows.length, total: toWrite.length, scriptVersion: 'writeRows-v3' });
 }
 
 function normClassKey(name) {
@@ -208,7 +209,7 @@ function readUserRows(sheet) {
 function writeUserRows(sheet, rows) {
   var lastRow = sheet.getLastRow();
   if (lastRow > 1) {
-    sheet.getRange('A2:D' + lastRow).clearContent();
+    sheet.deleteRows(2, lastRow - 1);
   }
   if (!rows.length) return;
 
@@ -221,9 +222,14 @@ function writeUserRows(sheet, rows) {
       rows[i].studentName || ''
     ]);
   }
-  var n = values.length;
-  // Baris 1 = header; data bermula A2, tepat n baris (elak ralat 250 vs 251)
-  sheet.getRange('A2:D' + (1 + n)).setValues(values);
+  var numRows = values.length;
+  var numCols = 4;
+  // Parameter ke-3 = bilangan baris (BUKAN baris akhir). Elak 250 data vs 251 range.
+  var range = sheet.getRange(2, 1, numRows, numCols);
+  if (range.getNumRows() !== numRows || range.getNumColumns() !== numCols) {
+    throw new Error('Julat Sheet salah: ' + range.getNumRows() + 'x' + range.getNumColumns() + ' vs ' + numRows + 'x' + numCols);
+  }
+  range.setValues(values);
 }
 
 // --- Subjek per pengguna (sheet SubjekPengguna) ---

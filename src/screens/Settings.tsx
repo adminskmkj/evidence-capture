@@ -24,12 +24,12 @@ export function Settings({ onLogout }: SettingsProps) {
     setBackendBusy(false);
     if (r.ok) {
       const hasSave = r.actions?.includes('saveSubjects');
-      const rowsFix = String(r.version || '').includes('writeRows-v2');
+      const rowsFix = String(r.version || '').includes('writeRows-v3');
       setBackendCheck(
         hasSave && rowsFix
-          ? `OK — backend ${r.version}, saveSubjects + tulis murid (writeRows-v2).`
+          ? `OK — backend ${r.version}, saveSubjects + tulis murid (writeRows-v3).`
           : hasSave
-            ? `Backend ${r.version} — saveSubjects ada tetapi tulis murid mungkin lama. Redeploy Code.gs (writeRows-v2).`
+            ? `Backend ${r.version} — redeploy Code.gs terbaru (mesti writeRows-v3). URL Vercel mesti sama deployment GAS.`
             : `Backend ${r.version} tetapi saveSubjects TIADA — paste Code.gs penuh & redeploy.`,
       );
     } else {

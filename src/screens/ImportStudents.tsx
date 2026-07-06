@@ -97,7 +97,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
       let msg = resp.error || 'Gagal simpan murid';
       if (/does not match the number of rows/i.test(msg)) {
         msg +=
-          ' — Backend Google Script masih versi lama. Buka Apps Script → Deploy → Manage deployments → Edit → New version → Deploy. Semak ping: version mesti ada writeRows-v2.';
+          ' — Semak Tetapan → Semak backend: version mesti writeRows-v3. Jika masih v2/lama, URL Vercel ≠ deployment GAS yang anda edit.';
       }
       setError(msg);
       setStep('error');
