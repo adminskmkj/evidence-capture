@@ -72,19 +72,14 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
 
         {teachingSlots.map((slot) => (
           <article className="subject-card" key={slot.slot_id}>
-            <div className="subject-card__header">
-              <div>
-                <p className="subject-year">{slot.class_name}</p>
-                <h3>{slot.subject_name}</h3>
-              </div>
-            </div>
-            <p className="context-note" style={{ margin: '0 0 0.5rem' }}>
+            <p className="subject-year">{slot.class_name}</p>
+            <h3>{slot.subject_name}</h3>
+            <p className="subject-card__meta">
               {formatTeachingSlotMeta(slot, countStudentsByClassId(slot.class_id))}
             </p>
             <button
-              className="primary-action"
+              className="subject-card__cta"
               onClick={() => onStartEvidence(slot.subject_id, slot.class_id)}
-              style={{ width: '100%' }}
               type="button"
             >
               + Evidence

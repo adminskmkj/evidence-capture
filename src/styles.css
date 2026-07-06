@@ -291,12 +291,21 @@ button {
 .subject-grid {
   display: grid;
   margin-top: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
 }
 
+@media (min-width: 1100px) {
+  .subject-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .subject-card {
-  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+  padding: 1.25rem 1.25rem 1rem;
 }
 
 .subject-card__header {
@@ -318,18 +327,60 @@ button {
 }
 
 .subject-year {
-  margin: 0 0 0.3rem;
+  margin: 0 0 0.35rem;
   color: var(--red);
-  font-size: 0.85rem;
+  font-size: clamp(0.8rem, 1.6vw, 0.95rem);
   font-weight: 800;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .subject-card h3 {
   margin: 0;
   color: var(--fg);
-  font-size: 1.45rem;
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
   font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.subject-card__meta {
+  margin: 0.85rem 0 1rem;
+  border: 2px solid var(--border);
+  background: var(--orange-bright);
+  box-shadow: 3px 3px 0 var(--border);
+  color: var(--fg);
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 0.45rem 0.65rem;
+}
+
+.subject-card__cta {
+  width: 100%;
+  margin-top: auto;
+  border: 3px solid var(--border);
+  background: var(--orange);
+  box-shadow: 4px 4px 0 var(--border);
+  color: var(--fg);
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 800;
+  padding: 0.95rem 1rem;
+  text-transform: uppercase;
+  touch-action: manipulation;
+  transition:
+    transform 80ms ease,
+    box-shadow 80ms ease;
+}
+
+.subject-card__cta:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--border);
+}
+
+.subject-card__cta:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--border);
 }
 
 .subject-card ul {

@@ -22,19 +22,16 @@
 
 ## Current
 
-All tasks complete. Definition of Done satisfied.
-
-## Blockers
-
-None
+Iterasi UX (2026-07-06): import JBA, setup kelas+subjek, slot subjek+kelas untuk bukti, label Darjah (bukan kod 1245), dedupe slot, dashboard grid 4 lajur smartboard.
 
 ## Next
 
-Task 11 - Google Apps Script Backend
+Penambahbaikan mengikut maklum balas guru (evidence bulan ini dari API bila sedia).
 
 ## Latest Verification
 
-- Task 1 Scaffold verified on 2026-07-05.
+- 2026-07-06: `npm run lint` + `npm run build` — lulus selepas dashboard slot labels + writeRows-v3.
+- Dashboard: kad kelas (merah) + subjek (besar) + meta oren + butang + Evidence.
 - `npm install` passed.
 - `npm run build` passed.
 - `npm run lint` passed after adding `eslint.config.js`.
