@@ -968,3 +968,32 @@ button {
   align-items: center;
   gap: 0.5rem;
 }
+
+.setup-step-block {
+  margin-bottom: 1.25rem;
+}
+
+.setup-step-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.setup-class-pick {
+  width: 100%;
+  min-height: 3rem;
+  font-size: 1.05rem;
+}
+
+.setup-class-popup-list {
+  max-height: 55vh;
+}
+
+.setup-class-pick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  text-align: left;
+  width: 100%;
+}

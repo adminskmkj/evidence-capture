@@ -7,9 +7,9 @@ import {
   subjectsToApiPayload,
 } from '../data/subjectSetup';
 import type { ClassGroup, Subject } from '../types/domain';
+import { SelectPopup } from './SelectPopup';
 
 interface SubjectSetupPanelProps {
-  /** Semua kelas dalam Sheet (untuk pilih); app lain hanya tunjuk yang dalam setup. */
   allClasses: ClassGroup[];
   existingSubjects: Subject[];
   onSaved: () => void;
@@ -19,22 +19,39 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
   const [lines, setLines] = useState<ClassSubjectLine[]>(() => linesFromSubjects(existingSubjects, allClasses));
   const [pickClassId, setPickClassId] = useState('');
   const [pickSubject, setPickSubject] = useState('');
+  const [classPopupOpen, setClassPopupOpen] = useState(false);
+  const [classFilter, setClassFilter] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [error, setError] = useState('');
 
   const classById = useMemo(() => new Map(allClasses.map((c) => [c.class_id, c])), [allClasses]);
+  const pickedClass = pickClassId ? classById.get(pickClassId) : undefined;
   const validLines = useMemo(() => lines.filter((l) => l.classId && l.subjectName.trim()), [lines]);
+
+  const filteredClasses = useMemo(() => {
+    const q = classFilter.trim().toLowerCase();
+    if (!q) return allClasses;
+    return allClasses.filter((c) => c.class_name.toLowerCase().includes(q));
+  }, [allClasses, classFilter]);
+
+  function pickClass(id: string) {
+    setPickClassId(id);
+    setClassPopupOpen(false);
+    setError('');
+    setStatus('idle');
+  }
 
   function addLine() {
     const classId = pickClassId;
     const subjectName = pickSubject.trim();
     if (!classId) {
-      setError('Pilih kelas dulu.');
+      setError('Langkah 1: pilih kelas dulu (butang biru di bawah).');
       setStatus('error');
+      setClassPopupOpen(true);
       return;
     }
     if (!subjectName) {
-      setError('Isi nama subjek.');
+      setError('Langkah 2: isi nama subjek.');
       setStatus('error');
       return;
     }
@@ -85,34 +102,59 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
 
   return (
     <div className="subject-setup">
-      <p className="context-note">
-        Senarai murid Excel mungkin banyak kelas — di sini anda pilih <strong>kelas yang anda ajar sahaja</strong> dan
-        subjek untuk setiap kelas. Kelas sama boleh ditambah dua kali dengan subjek berbeza (contoh Muzik &amp; Seni).
-      </p>
-
       {allClasses.length === 0 ? (
-        <p className="login-warning">Tiada kelas dalam Sheet. Muat naik Excel murid dulu.</p>
+        <p className="login-warning">
+          Tiada kelas dalam Sheet. Scroll ke atas → <strong>Muat naik Excel</strong> murid dulu.
+        </p>
       ) : (
         <>
-          <div className="class-subject-add">
-            <label className="form-group" style={{ flex: 1 }}>
-              <span className="context-note">Kelas</span>
-              <select
-                className="form-input"
-                onChange={(e) => setPickClassId(e.target.value)}
-                value={pickClassId}
-              >
-                <option value="">— Pilih kelas —</option>
-                {allClasses.map((c) => (
-                  <option key={c.class_id} value={c.class_id}>
-                    {c.class_name}
-                    {c.year_level !== '—' ? ` (${c.year_level})` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="form-group" style={{ flex: 1 }}>
-              <span className="context-note">Subjek</span>
+          <div className="setup-step-block">
+            <h4 className="setup-step-title">① Pilih kelas (yang anda ajar)</h4>
+            <button
+              className="select-trigger setup-class-pick"
+              onClick={() => setClassPopupOpen(true)}
+              type="button"
+            >
+              {pickedClass ? (
+                <span>{pickedClass.class_name}</span>
+              ) : (
+                <span className="select-trigger__placeholder">Ketik sini — pilih dari {allClasses.length} kelas</span>
+              )}
+            </button>
+          </div>
+
+          <SelectPopup onClose={() => setClassPopupOpen(false)} open={classPopupOpen} title="Pilih kelas">
+            <input
+              className="form-input"
+              onChange={(e) => setClassFilter(e.target.value)}
+              placeholder="Cari nama kelas…"
+              style={{ marginBottom: '0.75rem', width: '100%' }}
+              type="search"
+              value={classFilter}
+            />
+            <ul className="import-class-list setup-class-popup-list">
+              {filteredClasses.map((c) => (
+                <li key={c.class_id}>
+                  <button
+                    className={`popup-item setup-class-pick-item ${pickClassId === c.class_id ? 'popup-item--active' : ''}`}
+                    onClick={() => pickClass(c.class_id)}
+                    type="button"
+                  >
+                    <span className="import-class-name">{c.class_name}</span>
+                    <span className="import-class-meta">
+                      {c.jenis_kelas ? `${c.jenis_kelas} · ` : ''}
+                      {c.year_level !== '—' ? c.year_level : '—'}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {!filteredClasses.length && <p className="context-note">Tiada padanan carian.</p>}
+          </SelectPopup>
+
+          <div className="setup-step-block">
+            <h4 className="setup-step-title">② Subjek untuk kelas itu</h4>
+            <div className="class-subject-add">
               <input
                 className="form-input"
                 onChange={(e) => setPickSubject(e.target.value)}
@@ -122,21 +164,25 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
                     addLine();
                   }
                 }}
-                placeholder="cth: Muzik"
+                placeholder="cth: Muzik, Sains, PSV…"
                 type="text"
                 value={pickSubject}
               />
-            </label>
-            <button className="primary-action" onClick={addLine} type="button">
-              + Tambah
-            </button>
+              <button className="primary-action" onClick={addLine} type="button">
+                + Tambah
+              </button>
+            </div>
+            <p className="context-note">
+              Kelas sama, subjek lain? Pilih kelas yang sama lagi, isi subjek lain, Tambah.
+            </p>
           </div>
 
-          <p className="context-note" style={{ marginTop: '0.5rem' }}>
-            {allClasses.length} kelas dalam Sheet · anda ajar <strong>{new Set(validLines.map((l) => l.classId)).size}</strong>{' '}
-            kelas · <strong>{validLines.length}</strong> baris subjek
+          <p className="context-note">
+            Anda ajar <strong>{new Set(validLines.map((l) => l.classId)).size}</strong> kelas ·{' '}
+            <strong>{validLines.length}</strong> baris (kelas+subjek)
           </p>
 
+          <h4 className="setup-step-title">Senarai setup anda</h4>
           <ul className="subject-draft-list">
             {lines.map((line) => {
               const c = classById.get(line.classId);
@@ -155,19 +201,13 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
                     type="text"
                     value={line.subjectName}
                   />
-                  {c && (
-                    <span className="import-class-meta">
-                      {c.jenis_kelas ? `${c.jenis_kelas} · ` : ''}
-                      {c.year_level !== '—' ? c.year_level : ''}
-                    </span>
-                  )}
                 </li>
               );
             })}
           </ul>
 
           {!lines.length && (
-            <p className="login-warning">Belum ada setup. Pilih kelas + subjek, klik Tambah.</p>
+            <p className="login-warning">Belum ada. ① pilih kelas → ② isi subjek → Tambah.</p>
           )}
         </>
       )}
@@ -178,7 +218,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
         className="primary-action"
         disabled={status === 'saving' || !validLines.length}
         onClick={() => void handleSave()}
-        style={{ marginTop: '0.75rem' }}
+        style={{ marginTop: '0.75rem', width: '100%' }}
         type="button"
       >
         {status === 'saving' ? 'Menyimpan…' : `Simpan setup (${validLines.length})`}
