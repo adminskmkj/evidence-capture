@@ -9,7 +9,7 @@ import {
 import type { ClassGroup, Subject } from '../types/domain';
 import { DarjahFilterBar } from './DarjahFilterBar';
 import { formatYearLevelDisplay } from '../data/darjah';
-import { type DarjahFilterKey, matchesDarjahFilter } from '../data/darjahFilter';
+import { type DarjahFilterKey, filterClassesByDarjah } from '../data/darjahFilter';
 
 interface SubjectSetupPanelProps {
   allClasses: ClassGroup[];
@@ -30,13 +30,10 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
   const pickedClass = pickClassId ? classById.get(pickClassId) : undefined;
   const validLines = useMemo(() => lines.filter((l) => l.classId && l.subjectName.trim()), [lines]);
 
-  const filteredClasses = useMemo(() => {
-    const q = classFilter.trim().toLowerCase();
-    return allClasses.filter((c) => {
-      if (q) return c.class_name.toLowerCase().includes(q);
-      return matchesDarjahFilter(c.year_level, darjahFilter);
-    });
-  }, [allClasses, classFilter, darjahFilter]);
+  const { list: filteredClasses, darjahDataMissing, filterHadNoMatch } = useMemo(
+    () => filterClassesByDarjah(allClasses, darjahFilter, classFilter),
+    [allClasses, darjahFilter, classFilter],
+  );
 
   function pickClass(id: string) {
     setPickClassId(id);
@@ -112,9 +109,21 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
         <>
           <DarjahFilterBar
             onChange={setDarjahFilter}
-            title="① Ketik darjah (D1–D6 / PRA) — terus di halaman ini"
+            title="① Ketik darjah (D1–D6 / PRA) — hanya kelas yang ada kolum DARJAH dalam Sheet"
             value={darjahFilter}
           />
+          {darjahDataMissing && (
+            <p className="login-warning">
+              <strong>Darjah belum dalam data</strong> (semua kelas papar «—»). Butang D1–D6 tidak akan tapis apa-apa sehingga anda{' '}
+              <strong>import semula Excel</strong> dengan kolum <strong>DARJAH</strong> (fail JBA: darjah kadang hanya pada baris pertama
+              blok — app akan isi ke bawah automatik). Atau ketik <strong>Semua</strong> + cari nama kelas.
+            </p>
+          )}
+          {filterHadNoMatch && (
+            <p className="context-note">
+              Tiada kelas untuk darjah ini. Cuba <strong>Semua</strong> atau import semula jika darjah salah dalam Sheet.
+            </p>
+          )}
 
           <div className="setup-step-block">
             <h4 className="setup-step-title">② Pilih kelas (ketik satu baris)</h4>
@@ -148,7 +157,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
                 </li>
               ))}
             </ul>
-            {!filteredClasses.length && (
+            {!filteredClasses.length && !darjahDataMissing && (
               <p className="context-note">Tiada kelas. Ketik <strong>Semua</strong> atau darjah lain.</p>
             )}
           </div>

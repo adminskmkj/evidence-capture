@@ -13,6 +13,12 @@ export const DARJAH_FILTER_BUTTONS: { key: DarjahFilterKey; label: string }[] = 
   { key: '6', label: 'D6' },
 ];
 
+/** Darjah boleh ditapis (bukan "—" / kosong). */
+export function isDarjahKnown(yearOrDarjah: string): boolean {
+  const d = formatYearLevelDisplay(yearOrDarjah);
+  return d !== '—';
+}
+
 export function darjahKeyFromLabel(yearOrDarjah: string): DarjahFilterKey {
   const raw = String(yearOrDarjah || '').trim();
   const n = parseDarjahNumberFromText(raw);
@@ -31,4 +37,34 @@ export function darjahKeyFromLabel(yearOrDarjah: string): DarjahFilterKey {
 export function matchesDarjahFilter(yearOrDarjah: string, filter: DarjahFilterKey): boolean {
   if (filter === 'all') return true;
   return darjahKeyFromLabel(yearOrDarjah) === filter;
+}
+
+/** Senarai kelas ikut darjah; jika tiada kelas ber-darjah dalam data, jangan kosongkan skrin. */
+export function filterClassesByDarjah<T extends { year_level: string; class_name: string }>(
+  classes: T[],
+  filter: DarjahFilterKey,
+  searchQuery: string,
+): { list: T[]; darjahDataMissing: boolean; filterHadNoMatch: boolean } {
+  const q = searchQuery.trim().toLowerCase();
+  if (q) {
+    return {
+      list: classes.filter((c) => c.class_name.toLowerCase().includes(q)),
+      darjahDataMissing: false,
+      filterHadNoMatch: false,
+    };
+  }
+
+  const withDarjah = classes.filter((c) => isDarjahKnown(c.year_level));
+  const darjahDataMissing = classes.length > 0 && withDarjah.length === 0;
+
+  if (filter === 'all' || darjahDataMissing) {
+    return { list: classes, darjahDataMissing, filterHadNoMatch: false };
+  }
+
+  const list = classes.filter((c) => matchesDarjahFilter(c.year_level, filter));
+  return {
+    list,
+    darjahDataMissing: false,
+    filterHadNoMatch: list.length === 0 && withDarjah.length > 0,
+  };
 }

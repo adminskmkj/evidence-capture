@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
 import { DarjahFilterBar } from '../components/DarjahFilterBar';
 import { formatYearLevelDisplay, normalizeDarjahLabel } from '../data/darjah';
-import { type DarjahFilterKey, matchesDarjahFilter } from '../data/darjahFilter';
+import { type DarjahFilterKey, filterClassesByDarjah } from '../data/darjahFilter';
 
 interface ImportStudentsProps {
   onDone: () => void;
@@ -28,10 +28,15 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
 
   const classSummaries = useMemo(() => summarizeClasses(allRows), [allRows]);
 
-  const visibleClassSummaries = useMemo(
-    () => classSummaries.filter((c) => matchesDarjahFilter(c.darjah, darjahFilter)),
-    [classSummaries, darjahFilter],
-  );
+  const { list: visibleClassSummaries, darjahDataMissing } = useMemo(() => {
+    const mapped = classSummaries.map((c) => ({
+      ...c,
+      class_name: c.className,
+      year_level: c.darjah,
+    }));
+    const r = filterClassesByDarjah(mapped, darjahFilter, '');
+    return { list: r.list, darjahDataMissing: r.darjahDataMissing };
+  }, [classSummaries, darjahFilter]);
 
   const selectedRows = useMemo(
     () => allRows.filter((r) => selected[r.className]),
@@ -161,7 +166,12 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
                 </li>
               ))}
             </ul>
-            {!visibleClassSummaries.length && (
+            {darjahDataMissing && (
+              <p className="login-warning">
+                Darjah kosong dalam fail — butang D1–D6 tidak tapis. Pastikan kolum <strong>DARJAH</strong> wujud; nilai kosong diisi dari baris atas (JBA).
+              </p>
+            )}
+            {!visibleClassSummaries.length && !darjahDataMissing && (
               <p className="context-note">Tiada kelas untuk darjah ini. Ketik <strong>Semua</strong> atau darjah lain.</p>
             )}
             <button
@@ -207,18 +217,36 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
 }
 
 function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
-  const map = new Map<string, ClassSummary>();
+  const map = new Map<string, ClassSummary & { yearCounts: Record<string, number> }>();
   for (const r of rows) {
+    const y = formatYearLevelDisplay(r.yearLevel || '');
     const existing = map.get(r.className);
-    if (existing) existing.count += 1;
-    else map.set(r.className, {
-      className: r.className,
-      classType: r.classType,
-      darjah: formatYearLevelDisplay(r.yearLevel || ''),
-      count: 1,
-    });
+    if (existing) {
+      existing.count += 1;
+      if (y !== '—') existing.yearCounts[y] = (existing.yearCounts[y] || 0) + 1;
+    } else {
+      map.set(r.className, {
+        className: r.className,
+        classType: r.classType,
+        darjah: y,
+        count: 1,
+        yearCounts: y !== '—' ? { [y]: 1 } : {},
+      });
+    }
   }
-  return [...map.values()].sort((a, b) => a.className.localeCompare(b.className, 'ms'));
+  return [...map.values()]
+    .map(({ yearCounts, ...c }) => {
+      let best = c.darjah;
+      let n = 0;
+      for (const [y, cnt] of Object.entries(yearCounts)) {
+        if (cnt > n) {
+          n = cnt;
+          best = y;
+        }
+      }
+      return { ...c, darjah: best };
+    })
+    .sort((a, b) => a.className.localeCompare(b.className, 'ms'));
 }
 
 function normHeader(cell: unknown): string {
@@ -307,13 +335,16 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
   }
 
   const result: StudentImportRow[] = [];
+  let carryDarjah = '';
 
   for (let r = headerRowIdx + 1; r < matrix.length; r++) {
     const row = matrix[r] || [];
     const studentName = String(row[namaIdx] ?? '').trim();
     const className = String(row[kelasIdx] ?? '').trim();
     const classType = jenisIdx >= 0 ? String(row[jenisIdx] ?? '').trim() : '';
-    const rawYear = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
+    let rawYear = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
+    if (rawYear) carryDarjah = rawYear;
+    else if (carryDarjah && tahunIdx >= 0) rawYear = carryDarjah;
     const yearLevel = normalizeDarjahLabel(rawYear, className);
 
     if (!studentName || !className) continue;

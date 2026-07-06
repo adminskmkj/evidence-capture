@@ -83,6 +83,7 @@ function buildUserBootstrap(ss, userName) {
   var sheet = ss.getSheetByName(userName);
   var data = sheet.getDataRange().getValues();
   var classes = {};
+  var yearVotes = {};
   var students = [];
 
   for (var i = 1; i < data.length; i++) {
@@ -91,15 +92,34 @@ function buildUserBootstrap(ss, userName) {
     var tahun = String(data[i][2] || '').trim();
     var studentName = String(data[i][3] || '').trim();
 
-    if (className && !classes[className]) {
-      classes[className] = { class_name: className, class_type: classType, year: tahun };
+    if (className) {
+      if (!classes[className]) {
+        classes[className] = { class_name: className, class_type: classType, year: tahun };
+        yearVotes[className] = {};
+      }
+      if (tahun) {
+        yearVotes[className][tahun] = (yearVotes[className][tahun] || 0) + 1;
+      }
     }
     if (studentName) {
       students.push({ student_name: studentName, class_name: className });
     }
   }
 
-  var classList = Object.keys(classes).map(function(k) { return classes[k]; });
+  var classList = Object.keys(classes).map(function(k) {
+    var c = classes[k];
+    var votes = yearVotes[k] || {};
+    var best = c.year;
+    var bestN = 0;
+    for (var y in votes) {
+      if (votes[y] > bestN) {
+        bestN = votes[y];
+        best = y;
+      }
+    }
+    c.year = best || c.year;
+    return c;
+  });
   var subjects = readUserSubjects(ss, userName);
   return { classes: classList, students: students, subjects: subjects };
 }
