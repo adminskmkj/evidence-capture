@@ -1,4 +1,5 @@
 import { useUserData } from '../context/UserDataContext';
+import { formatYearLevelDisplay } from '../data/darjah';
 
 interface DashboardProps {
   evidenceThisMonth?: number;
@@ -79,7 +80,7 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
             </div>
             <p className="context-note" style={{ margin: '0 0 0.5rem' }}>
               {countStudentsByClassId(slot.class_id)} murid
-              {slot.year_level !== '—' ? ` · ${slot.year_level}` : ''}
+              {slot.year_level !== '—' ? ` · ${formatYearLevelDisplay(slot.year_level)}` : ''}
             </p>
             <button
               className="primary-action"

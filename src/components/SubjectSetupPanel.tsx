@@ -8,6 +8,7 @@ import {
 } from '../data/subjectSetup';
 import type { ClassGroup, Subject } from '../types/domain';
 import { SelectPopup } from './SelectPopup';
+import { formatYearLevelDisplay } from '../data/darjah';
 
 interface SubjectSetupPanelProps {
   allClasses: ClassGroup[];
@@ -116,7 +117,10 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
               type="button"
             >
               {pickedClass ? (
-                <span>{pickedClass.class_name}</span>
+                <span>
+                  {pickedClass.class_name}
+                  {pickedClass.year_level !== '—' ? ` · ${formatYearLevelDisplay(pickedClass.year_level)}` : ''}
+                </span>
               ) : (
                 <span className="select-trigger__placeholder">Ketik sini — pilih dari {allClasses.length} kelas</span>
               )}
@@ -143,7 +147,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
                     <span className="import-class-name">{c.class_name}</span>
                     <span className="import-class-meta">
                       {c.jenis_kelas ? `${c.jenis_kelas} · ` : ''}
-                      {c.year_level !== '—' ? c.year_level : '—'}
+                      {formatYearLevelDisplay(c.year_level)}
                     </span>
                   </button>
                 </li>

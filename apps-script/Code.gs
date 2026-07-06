@@ -46,7 +46,7 @@ function handleLogin(p) {
 function setupUserSheet(ss, userName) {
   var sheet = ss.getSheetByName(userName);
   if (!sheet) return;
-  sheet.getRange('A1:D1').setValues([['NAMA KELAS', 'JENIS KELAS', 'TAHUN/TINGKATAN', 'NAMA MURID']]);
+  sheet.getRange('A1:D1').setValues([['NAMA KELAS', 'JENIS KELAS', 'DARJAH/TAHUN', 'NAMA MURID']]);
 }
 
 // --- Get Bootstrap Data ---

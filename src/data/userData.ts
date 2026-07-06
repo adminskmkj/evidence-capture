@@ -1,4 +1,5 @@
 import type { ClassGroup, Student } from '../types/domain';
+import { normalizeDarjahLabel } from './darjah';
 
 export interface ApiUserClass {
   class_name?: string;
@@ -36,8 +37,12 @@ export function normalizeUserBootstrap(
       classMeta.set(className, {
         class_name: className,
         jenis_kelas: String(c.class_type || '').trim(),
-        year_level: String(c.year || '').trim() || '—',
+        year_level: normalizeDarjahLabel(String(c.year || ''), className),
       });
+    } else if (classMeta.get(className)!.year_level === '—') {
+      const meta = classMeta.get(className)!;
+      const y = normalizeDarjahLabel(String(c.year || ''), className);
+      if (y !== '—') meta.year_level = y;
     }
   }
 
@@ -50,7 +55,11 @@ export function normalizeUserBootstrap(
     if (!studentName || !className) continue;
 
     if (!classMeta.has(className)) {
-      classMeta.set(className, { class_name: className, jenis_kelas: '', year_level: '—' });
+      classMeta.set(className, {
+        class_name: className,
+        jenis_kelas: '',
+        year_level: normalizeDarjahLabel('', className),
+      });
     }
 
     const classId = slugId(className);

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
+import { formatYearLevelDisplay, normalizeDarjahLabel } from '../data/darjah';
 
 interface ImportStudentsProps {
   onDone: () => void;
@@ -10,6 +11,7 @@ type Step = 'idle' | 'parsing' | 'pick-classes' | 'uploading' | 'done' | 'error'
 interface ClassSummary {
   className: string;
   classType: string;
+  darjah: string;
   count: number;
 }
 
@@ -131,7 +133,10 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
                       type="checkbox"
                     />
                     <span className="import-class-name">{c.className}</span>
-                    <span className="import-class-meta">{c.classType || '—'} · {c.count} murid</span>
+                    <span className="import-class-meta">
+                      {c.darjah !== '—' ? `${c.darjah} · ` : ''}
+                      {c.classType || '—'} · {c.count} murid
+                    </span>
                   </label>
                 </li>
               ))}
@@ -183,7 +188,12 @@ function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
   for (const r of rows) {
     const existing = map.get(r.className);
     if (existing) existing.count += 1;
-    else map.set(r.className, { className: r.className, classType: r.classType, count: 1 });
+    else map.set(r.className, {
+      className: r.className,
+      classType: r.classType,
+      darjah: formatYearLevelDisplay(r.yearLevel || ''),
+      count: 1,
+    });
   }
   return [...map.values()].sort((a, b) => a.className.localeCompare(b.className, 'ms'));
 }
@@ -223,7 +233,16 @@ function colIndexForJenis(headers: string[]): number {
 function colIndexForTahun(headers: string[]): number {
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i];
-    if (h === 'TAHUN / TINGKATAN' || h === 'TAHUN/TINGKATAN' || h === 'TINGKATAN' || h === 'TAHUN') return i;
+    if (
+      h === 'DARJAH' ||
+      h === 'TAHUN / TINGKATAN' ||
+      h === 'TAHUN/TINGKATAN' ||
+      h === 'TINGKATAN' ||
+      h === 'TAHUN' ||
+      h.includes('DARJAH')
+    ) {
+      return i;
+    }
   }
   return -1;
 }
@@ -270,7 +289,8 @@ async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
     const studentName = String(row[namaIdx] ?? '').trim();
     const className = String(row[kelasIdx] ?? '').trim();
     const classType = jenisIdx >= 0 ? String(row[jenisIdx] ?? '').trim() : '';
-    const yearLevel = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
+    const rawYear = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
+    const yearLevel = normalizeDarjahLabel(rawYear, className);
 
     if (!studentName || !className) continue;
     if (normHeader(studentName) === 'NAMA') continue;
