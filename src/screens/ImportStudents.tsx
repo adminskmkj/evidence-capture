@@ -3,7 +3,7 @@ import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
 import { DarjahFilterBar } from '../components/DarjahFilterBar';
 import { formatYearLevelDisplay, normalizeDarjahLabel } from '../data/darjah';
 import { type DarjahFilterKey, filterClassesByDarjah } from '../data/darjahFilter';
-import { canonicalClassKey, normalizeClassName } from '../utils/className';
+import { canonicalClassKey, normalizeClassName, prefixClassNameWithYear } from '../utils/className';
 
 interface ImportStudentsProps {
   onDone: () => void;
@@ -92,7 +92,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     setStep('uploading');
     setError('');
 
-    const resp = await uploadStudents(selectedRows, 'merge');
+    const resp = await uploadStudents(selectedRows, 'replace');
     if (!resp.ok) {
       let msg = resp.error || 'Gagal simpan murid';
       if (/does not match the number of rows/i.test(msg)) {
@@ -273,13 +273,13 @@ function normHeader(cell: unknown): string {
 function colIndexForTahun(headers: string[]): number {
   const order = [
     'DARJAH',
-    'BIL',
     'TINGKATAN',
     'TAHUN / TINGKATAN',
     'TAHUN/TINGKATAN',
     'DARJAH / TAHUN',
     'TAHUN',
   ];
+
   for (const want of order) {
     for (let i = 0; i < headers.length; i++) {
       if (headers[i] === want) return i;
@@ -289,7 +289,6 @@ function colIndexForTahun(headers: string[]): number {
     const h = headers[i];
     if (!h) continue;
     if (h.includes('DARJAH') && !h.includes('TAHUN')) return i;
-    if (h === 'BIL' || h.startsWith('BIL ')) return i;
     if (h.includes('TAHUN') && h.includes('TINGKATAN')) return i;
   }
   return -1;
@@ -404,7 +403,8 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
     if (!studentName || !className) continue;
     if (normHeader(studentName) === 'NAMA') continue;
 
-    const normalizedClass = normalizeClassName(className);
+    const classNameWithYear = prefixClassNameWithYear(className, yearLevel);
+    const normalizedClass = normalizeClassName(classNameWithYear);
     result.push({ className: normalizedClass, classType, studentName, yearLevel });
   }
 

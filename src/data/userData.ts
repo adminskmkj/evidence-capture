@@ -1,6 +1,6 @@
 import type { ClassGroup, Student } from '../types/domain';
 import { normalizeDarjahLabel } from './darjah';
-import { canonicalClassKey, normalizeClassName } from '../utils/className';
+import { canonicalClassKey, normalizeClassName, prefixClassNameWithYear } from '../utils/className';
 
 export interface ApiUserClass {
   class_name?: string;
@@ -31,7 +31,8 @@ export function normalizeUserBootstrap(
   const classMeta = new Map<string, { class_name: string; jenis_kelas: string; year_level: string }>();
 
   const upsertClass = (rawName: string, classType: string, year: string) => {
-    const className = normalizeClassName(rawName);
+    const classNameWithYear = prefixClassNameWithYear(rawName, year);
+    const className = normalizeClassName(classNameWithYear);
     if (!className) return;
     const metaKey = canonicalClassKey(className);
     const y = normalizeDarjahLabel(year, className);
