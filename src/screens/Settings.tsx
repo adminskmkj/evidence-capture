@@ -49,6 +49,20 @@ export function Settings({ onLogout }: SettingsProps) {
       </div>
 
       <div className="capture-panel" style={{ marginTop: '1rem' }}>
+        <h3>Setup kelas &amp; subjek</h3>
+        <p className="context-note" style={{ marginBottom: '0.75rem' }}>
+          Butang <strong>D1–D6 / PRA</strong> ada di sini (bukan popup). Pilih kelas → subjek → <strong>Simpan setup</strong>.
+          Dashboard tunjuk <strong>{loading ? '…' : teachingSlots.length}</strong> baris sahaja.
+        </p>
+        <SubjectSetupPanel
+          key={teachingSlots.map((s) => s.slot_id).join('|') || 'empty'}
+          allClasses={allClasses}
+          existingSubjects={subjects}
+          onSaved={() => void refresh()}
+        />
+      </div>
+
+      <div className="capture-panel" style={{ marginTop: '1rem' }}>
         <h3>Senarai murid &amp; kelas</h3>
         <dl className="evidence-meta">
           <dt>Kelas dalam Sheet</dt>
@@ -70,19 +84,6 @@ export function Settings({ onLogout }: SettingsProps) {
             Segarkan dari Sheet
           </button>
         </div>
-      </div>
-
-      <div className="capture-panel" style={{ marginTop: '1rem' }}>
-        <h3>Setup kelas &amp; subjek</h3>
-        <p className="context-note" style={{ marginBottom: '0.75rem' }}>
-          Baris setup: <strong>{loading ? '…' : teachingSlots.length}</strong> — hanya ini dipaparkan di Dashboard.
-        </p>
-        <SubjectSetupPanel
-          key={teachingSlots.map((s) => s.slot_id).join('|') || 'empty'}
-          allClasses={allClasses}
-          existingSubjects={subjects}
-          onSaved={() => void refresh()}
-        />
       </div>
 
       <div className="capture-panel" style={{ marginTop: '1rem' }}>

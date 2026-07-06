@@ -7,7 +7,6 @@ import {
   subjectsToApiPayload,
 } from '../data/subjectSetup';
 import type { ClassGroup, Subject } from '../types/domain';
-import { SelectPopup } from './SelectPopup';
 import { DarjahFilterBar } from './DarjahFilterBar';
 import { formatYearLevelDisplay } from '../data/darjah';
 import { type DarjahFilterKey, matchesDarjahFilter } from '../data/darjahFilter';
@@ -22,7 +21,6 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
   const [lines, setLines] = useState<ClassSubjectLine[]>(() => linesFromSubjects(existingSubjects, allClasses));
   const [pickClassId, setPickClassId] = useState('');
   const [pickSubject, setPickSubject] = useState('');
-  const [classPopupOpen, setClassPopupOpen] = useState(false);
   const [classFilter, setClassFilter] = useState('');
   const [darjahFilter, setDarjahFilter] = useState<DarjahFilterKey>('all');
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
@@ -43,7 +41,6 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
 
   function pickClass(id: string) {
     setPickClassId(id);
-    setClassPopupOpen(false);
     setError('');
     setStatus('idle');
   }
@@ -52,13 +49,12 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
     const classId = pickClassId;
     const subjectName = pickSubject.trim();
     if (!classId) {
-      setError('Langkah 1: pilih kelas dulu (butang biru di bawah).');
+      setError('Pilih kelas dalam senarai di bawah (ketik satu baris kelas).');
       setStatus('error');
-      setClassPopupOpen(true);
       return;
     }
     if (!subjectName) {
-      setError('Langkah 2: isi nama subjek.');
+      setError('Isi nama subjek, kemudian + Tambah.');
       setStatus('error');
       return;
     }
@@ -111,50 +107,43 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
     <div className="subject-setup">
       {allClasses.length === 0 ? (
         <p className="login-warning">
-          Tiada kelas dalam Sheet. Scroll ke atas → <strong>Muat naik Excel</strong> murid dulu.
+          Tiada kelas dalam Sheet. Guna <strong>Muat naik Excel</strong> di panel atas.
         </p>
       ) : (
         <>
-          <div className="setup-step-block">
-            <h4 className="setup-step-title">① Pilih kelas (yang anda ajar)</h4>
-            <button
-              className="select-trigger setup-class-pick"
-              onClick={() => setClassPopupOpen(true)}
-              type="button"
-            >
-              {pickedClass ? (
-                <span>
-                  {pickedClass.class_name}
-                  {pickedClass.year_level !== '—' ? ` · ${formatYearLevelDisplay(pickedClass.year_level)}` : ''}
-                </span>
-              ) : (
-                <span className="select-trigger__placeholder">Ketik sini — pilih dari {allClasses.length} kelas</span>
-              )}
-            </button>
-          </div>
+          <DarjahFilterBar
+            onChange={setDarjahFilter}
+            title="① Ketik darjah (D1–D6 / PRA) — terus di halaman ini"
+            value={darjahFilter}
+          />
 
-          <SelectPopup onClose={() => setClassPopupOpen(false)} open={classPopupOpen} title="Pilih kelas">
-            <DarjahFilterBar onChange={setDarjahFilter} title="Ketik darjah (D1–D6 / PRA)" value={darjahFilter} />
+          <div className="setup-step-block">
+            <h4 className="setup-step-title">② Pilih kelas (ketik satu baris)</h4>
             <input
               className="form-input"
               onChange={(e) => setClassFilter(e.target.value)}
               placeholder="Cari nama kelas…"
-              style={{ marginBottom: '0.75rem', width: '100%' }}
               type="search"
               value={classFilter}
             />
-            <ul className="import-class-list setup-class-popup-list">
+            {pickedClass && (
+              <p className="context-note setup-picked-hint">
+                Kelas dipilih: <strong>{pickedClass.class_name}</strong>
+                {pickedClass.year_level !== '—' ? ` · ${formatYearLevelDisplay(pickedClass.year_level)}` : ''}
+              </p>
+            )}
+            <ul className="import-class-list setup-class-inline-list">
               {filteredClasses.map((c) => (
                 <li key={c.class_id}>
                   <button
-                    className={`popup-item setup-class-pick-item ${pickClassId === c.class_id ? 'popup-item--active' : ''}`}
+                    className={`import-class-row setup-class-pick-btn ${pickClassId === c.class_id ? 'setup-class-pick-btn--active' : ''}`}
                     onClick={() => pickClass(c.class_id)}
                     type="button"
                   >
                     <span className="import-class-name">{c.class_name}</span>
                     <span className="import-class-meta">
-                      {c.jenis_kelas ? `${c.jenis_kelas} · ` : ''}
                       {formatYearLevelDisplay(c.year_level)}
+                      {c.jenis_kelas ? ` · ${c.jenis_kelas}` : ''}
                     </span>
                   </button>
                 </li>
@@ -163,10 +152,10 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
             {!filteredClasses.length && (
               <p className="context-note">Tiada kelas. Ketik <strong>Semua</strong> atau darjah lain.</p>
             )}
-          </SelectPopup>
+          </div>
 
           <div className="setup-step-block">
-            <h4 className="setup-step-title">② Subjek untuk kelas itu</h4>
+            <h4 className="setup-step-title">③ Subjek untuk kelas itu</h4>
             <div className="class-subject-add">
               <input
                 className="form-input"
@@ -186,7 +175,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
               </button>
             </div>
             <p className="context-note">
-              Kelas sama, subjek lain? Pilih kelas yang sama lagi, isi subjek lain, Tambah.
+              Kelas sama, 2 subjek? Pilih kelas yang sama lagi, isi subjek lain, Tambah.
             </p>
           </div>
 
@@ -220,7 +209,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
           </ul>
 
           {!lines.length && (
-            <p className="login-warning">Belum ada. ① pilih kelas → ② isi subjek → Tambah.</p>
+            <p className="login-warning">Belum ada. Darjah → kelas → subjek → Tambah.</p>
           )}
         </>
       )}
