@@ -9,6 +9,7 @@ const APPS_SCRIPT_URL =
 let _userName = '';
 
 export function setUser(name: string) { _userName = name; localStorage.setItem('evidence_user', name); }
+export function clearUser() { _userName = ''; localStorage.removeItem('evidence_user'); }
 export function getUser(): string {
   if (!_userName) _userName = localStorage.getItem('evidence_user') || '';
   return _userName;

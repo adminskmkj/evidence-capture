@@ -851,3 +851,37 @@ button {
 .login-card .capture-error {
   margin-top: 0.5rem;
 }
+
+.text-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.secondary-action {
+  display: inline-block;
+  border: 2px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  font-weight: 800;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--border);
+}
+
+.class-shortcut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.class-shortcut-list .class-shortcut {
+  width: 100%;
+}

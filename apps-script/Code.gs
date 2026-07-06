@@ -27,7 +27,8 @@ function handleLogin(p) {
   var existing = ss.getSheetByName(name);
 
   if (existing) {
-    return jsonResponse({ ok: true, user: name, classes: readSheetData(ss, name, 'Kelas'), students: readSheetData(ss, name, 'Murid') });
+    var boot = buildUserBootstrap(ss, name);
+    return jsonResponse({ ok: true, user: name, classes: boot.classes, students: boot.students });
   }
 
   // Create sheets for new user
@@ -44,20 +45,7 @@ function handleLogin(p) {
 function setupUserSheet(ss, userName) {
   var sheet = ss.getSheetByName(userName);
   if (!sheet) return;
-
-  // Row 1: Headers for classes A-Q etc
-  sheet.getRange('A1:Q1').setValues([['class_name', 'class_type', 'student_id', 'student_name', '', '', '', '', '', '', '', '', '', '', '', '', '']]);
-  sheet.getRange('D1').setValue('student_id');
-  sheet.getRange('E1').setValue('student_name');
-
-  // Actually let's use a simpler layout
-  // I'll store data in tab-separated format in each user's sheet
-  // Better: create two ranges within the same sheet
-
-  var headers = [
-    ['NAMA KELAS', 'JENIS KELAS', '', 'NAMA MURID']
-  ];
-  sheet.getRange('A1:D1').setValues(headers);
+  sheet.getRange('A1:D1').setValues([['NAMA KELAS', 'JENIS KELAS', '', 'NAMA MURID']]);
 }
 
 // --- Get Bootstrap Data ---
@@ -69,6 +57,12 @@ function handleGetBootstrapData(p) {
   var sheet = ss.getSheetByName(userName);
   if (!sheet) return jsonResponse({ ok: false, error: 'User not found' });
 
+  var boot = buildUserBootstrap(ss, userName);
+  return jsonResponse({ ok: true, classes: boot.classes, students: boot.students });
+}
+
+function buildUserBootstrap(ss, userName) {
+  var sheet = ss.getSheetByName(userName);
   var data = sheet.getDataRange().getValues();
   var classes = {};
   var students = [];
@@ -79,7 +73,7 @@ function handleGetBootstrapData(p) {
     var studentName = String(data[i][3] || '').trim();
 
     if (className && !classes[className]) {
-      classes[className] = { class_name: className, class_type: classType, year: classType || 'Tahun 1' };
+      classes[className] = { class_name: className, class_type: classType, year: classType || '' };
     }
     if (studentName) {
       students.push({ student_name: studentName, class_name: className });
@@ -87,8 +81,7 @@ function handleGetBootstrapData(p) {
   }
 
   var classList = Object.keys(classes).map(function(k) { return classes[k]; });
-
-  return jsonResponse({ ok: true, classes: classList, students: students });
+  return { classes: classList, students: students };
 }
 
 // --- Upload Students from Excel ---

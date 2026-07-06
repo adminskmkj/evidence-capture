@@ -10,9 +10,10 @@ type Step = 'form' | 'capture-image' | 'capture-video' | 'preview' | 'uploading'
 interface AddEvidenceProps {
   initialSubjectId?: string;
   initialClassId?: string;
+  onOpenImport?: () => void;
 }
 
-export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidenceProps) {
+export function AddEvidence({ initialSubjectId, initialClassId, onOpenImport }: AddEvidenceProps) {
   const [step, setStep] = useState<Step>('form');
   const [formData, setFormData] = useState<EvidenceFormData | null>(null);
   const [capturedMedia, setCapturedMedia] = useState<
@@ -143,6 +144,7 @@ export function AddEvidence({ initialSubjectId, initialClassId }: AddEvidencePro
       <EvidenceForm
         initialClassId={initialClassId}
         initialSubjectId={initialSubjectId}
+        onOpenImport={onOpenImport}
         onSubmit={handleFormSubmit}
       />
       {formData && (
