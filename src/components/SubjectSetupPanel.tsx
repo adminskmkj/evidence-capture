@@ -8,7 +8,9 @@ import {
 } from '../data/subjectSetup';
 import type { ClassGroup, Subject } from '../types/domain';
 import { SelectPopup } from './SelectPopup';
+import { DarjahFilterBar } from './DarjahFilterBar';
 import { formatYearLevelDisplay } from '../data/darjah';
+import { type DarjahFilterKey, matchesDarjahFilter } from '../data/darjahFilter';
 
 interface SubjectSetupPanelProps {
   allClasses: ClassGroup[];
@@ -22,6 +24,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
   const [pickSubject, setPickSubject] = useState('');
   const [classPopupOpen, setClassPopupOpen] = useState(false);
   const [classFilter, setClassFilter] = useState('');
+  const [darjahFilter, setDarjahFilter] = useState<DarjahFilterKey>('all');
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [error, setError] = useState('');
 
@@ -31,9 +34,12 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
 
   const filteredClasses = useMemo(() => {
     const q = classFilter.trim().toLowerCase();
-    if (!q) return allClasses;
-    return allClasses.filter((c) => c.class_name.toLowerCase().includes(q));
-  }, [allClasses, classFilter]);
+    return allClasses.filter((c) => {
+      if (!matchesDarjahFilter(c.year_level, darjahFilter)) return false;
+      if (!q) return true;
+      return c.class_name.toLowerCase().includes(q);
+    });
+  }, [allClasses, classFilter, darjahFilter]);
 
   function pickClass(id: string) {
     setPickClassId(id);
@@ -128,6 +134,7 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
           </div>
 
           <SelectPopup onClose={() => setClassPopupOpen(false)} open={classPopupOpen} title="Pilih kelas">
+            <DarjahFilterBar onChange={setDarjahFilter} title="Ketik darjah (D1–D6 / PRA)" value={darjahFilter} />
             <input
               className="form-input"
               onChange={(e) => setClassFilter(e.target.value)}
@@ -153,7 +160,9 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
                 </li>
               ))}
             </ul>
-            {!filteredClasses.length && <p className="context-note">Tiada padanan carian.</p>}
+            {!filteredClasses.length && (
+              <p className="context-note">Tiada kelas. Ketik <strong>Semua</strong> atau darjah lain.</p>
+            )}
           </SelectPopup>
 
           <div className="setup-step-block">

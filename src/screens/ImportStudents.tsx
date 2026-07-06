@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
+import { DarjahFilterBar } from '../components/DarjahFilterBar';
 import { formatYearLevelDisplay, normalizeDarjahLabel } from '../data/darjah';
+import { type DarjahFilterKey, matchesDarjahFilter } from '../data/darjahFilter';
 
 interface ImportStudentsProps {
   onDone: () => void;
@@ -21,8 +23,15 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
   const [savedCount, setSavedCount] = useState(0);
+  const [darjahFilter, setDarjahFilter] = useState<DarjahFilterKey>('all');
+  const [darjahColumnFound, setDarjahColumnFound] = useState(false);
 
   const classSummaries = useMemo(() => summarizeClasses(allRows), [allRows]);
+
+  const visibleClassSummaries = useMemo(
+    () => classSummaries.filter((c) => matchesDarjahFilter(c.darjah, darjahFilter)),
+    [classSummaries, darjahFilter],
+  );
 
   const selectedRows = useMemo(
     () => allRows.filter((r) => selected[r.className]),
@@ -43,11 +52,14 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     setError('');
     setAllRows([]);
     setSelected({});
+    setDarjahFilter('all');
+    setDarjahColumnFound(false);
 
     try {
       const buf = await file.arrayBuffer();
-      const result = await parseExcel(buf);
-      setAllRows(result);
+      const { rows, darjahColumnFound: foundDarjah } = await parseExcel(buf);
+      setAllRows(rows);
+      setDarjahColumnFound(foundDarjah);
       setStep('pick-classes');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ralat baca fail');
@@ -60,8 +72,8 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   }
 
   function selectAll(on: boolean) {
-    const next: Record<string, boolean> = {};
-    for (const c of classSummaries) next[c.className] = on;
+    const next = { ...selected };
+    for (const c of visibleClassSummaries) next[c.className] = on;
     setSelected(next);
   }
 
@@ -91,6 +103,8 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     setAllRows([]);
     setSelected({});
     setSavedCount(0);
+    setDarjahFilter('all');
+    setDarjahColumnFound(false);
   }
 
   return (
@@ -102,7 +116,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
           Fail sekolah ada ramai kelas — <strong>pilih kelas yang anda ajar sahaja</strong>. App hanya simpan kelas yang ditick.
         </p>
         <p className="login-warning">
-          Header carian automatik: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>JENIS KELAS</strong> (fail JBA OK).
+          Header: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>DARJAH</strong>, <strong>JENIS KELAS</strong> (fail JBA).
         </p>
 
         {(step === 'idle' || step === 'error') && (
@@ -119,12 +133,18 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
             <p className="context-note">
               {allRows.length} murid · {classSummaries.length} kelas dalam fail. Simpan ke Sheet, kemudian Tetapan → pilih <strong>kelas yang anda ajar</strong> + subjek.
             </p>
+            <DarjahFilterBar onChange={setDarjahFilter} title="① Ketik darjah — tapis senarai kelas" value={darjahFilter} />
+            {darjahColumnFound ? (
+              <p className="context-note">Kolum <strong>DARJAH</strong> dijumpai dalam Excel.</p>
+            ) : (
+              <p className="context-note">Kolum DARJAH tidak dijumpai — darjah dari nama kelas (cth. 1 BESTARI).</p>
+            )}
             <div className="import-class-actions">
               <button className="form-chip" onClick={() => selectAll(true)} type="button">Pilih semua</button>
               <button className="form-chip" onClick={() => selectAll(false)} type="button">Kosongkan</button>
             </div>
             <ul className="import-class-list">
-              {classSummaries.map((c) => (
+              {visibleClassSummaries.map((c) => (
                 <li key={c.className}>
                   <label className="import-class-row">
                     <input
@@ -141,6 +161,9 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
                 </li>
               ))}
             </ul>
+            {!visibleClassSummaries.length && (
+              <p className="context-note">Tiada kelas untuk darjah ini. Ketik <strong>Semua</strong> atau darjah lain.</p>
+            )}
             <button
               className="primary-action"
               disabled={!selectedRows.length}
@@ -200,6 +223,7 @@ function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
 
 function normHeader(cell: unknown): string {
   return String(cell ?? '')
+    .replace(/\*/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase()
@@ -247,7 +271,7 @@ function colIndexForTahun(headers: string[]): number {
   return -1;
 }
 
-async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
+async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[]; darjahColumnFound: boolean }> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -302,5 +326,5 @@ async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
     throw new Error('Tiada murid dijumpai selepas baris header. Semak kolum NAMA dan NAMA KELAS ada data.');
   }
 
-  return result;
+  return { rows: result, darjahColumnFound: tahunIdx >= 0 };
 }
