@@ -13,10 +13,14 @@ export const DARJAH_FILTER_BUTTONS: { key: DarjahFilterKey; label: string }[] = 
   { key: '6', label: 'D6' },
 ];
 
-/** Darjah boleh ditapis (bukan "—" / kosong). */
+/** Boleh dipadankan dengan butang D1–D6 / PRA (bukan tahun 2025 atau tajuk kolum). */
+export function isDarjahFilterable(yearOrDarjah: string): boolean {
+  return darjahKeyFromLabel(yearOrDarjah) !== 'all';
+}
+
+/** @deprecated guna isDarjahFilterable */
 export function isDarjahKnown(yearOrDarjah: string): boolean {
-  const d = formatYearLevelDisplay(yearOrDarjah);
-  return d !== '—';
+  return isDarjahFilterable(yearOrDarjah);
 }
 
 export function darjahKeyFromLabel(yearOrDarjah: string): DarjahFilterKey {
@@ -54,8 +58,8 @@ export function filterClassesByDarjah<T extends { year_level: string; class_name
     };
   }
 
-  const withDarjah = classes.filter((c) => isDarjahKnown(c.year_level));
-  const darjahDataMissing = classes.length > 0 && withDarjah.length === 0;
+  const filterable = classes.filter((c) => isDarjahFilterable(c.year_level));
+  const darjahDataMissing = classes.length > 0 && filterable.length === 0;
 
   if (filter === 'all' || darjahDataMissing) {
     return { list: classes, darjahDataMissing, filterHadNoMatch: false };
@@ -65,6 +69,6 @@ export function filterClassesByDarjah<T extends { year_level: string; class_name
   return {
     list,
     darjahDataMissing: false,
-    filterHadNoMatch: list.length === 0 && withDarjah.length > 0,
+    filterHadNoMatch: list.length === 0 && filterable.length > 0,
   };
 }

@@ -264,14 +264,26 @@ function normHeader(cell: unknown): string {
 }
 
 function colIndexForTahun(headers: string[]): number {
+  const order = [
+    'DARJAH',
+    'BIL',
+    'TINGKATAN',
+    'TAHUN / TINGKATAN',
+    'TAHUN/TINGKATAN',
+    'DARJAH / TAHUN',
+    'TAHUN',
+  ];
+  for (const want of order) {
+    for (let i = 0; i < headers.length; i++) {
+      if (headers[i] === want) return i;
+    }
+  }
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i];
     if (!h) continue;
-    if (h === 'DARJAH' || h === 'TAHUN' || h === 'TINGKATAN') return i;
-    if (h === 'TAHUN / TINGKATAN' || h === 'TAHUN/TINGKATAN') return i;
-    if (h.includes('DARJAH')) return i;
+    if (h.includes('DARJAH') && !h.includes('TAHUN')) return i;
+    if (h === 'BIL' || h.startsWith('BIL ')) return i;
     if (h.includes('TAHUN') && h.includes('TINGKATAN')) return i;
-    if (h.startsWith('TAHUN ') && h.includes('TINGKATAN')) return i;
   }
   return -1;
 }
@@ -306,6 +318,11 @@ function colIndexForJenis(headers: string[]): number {
     if (headers[i] === 'JENIS KELAS') return i;
   }
   return -1;
+}
+
+function looksLikeHeaderCell(text: string): boolean {
+  const u = normHeader(text);
+  return u.includes('TAHUN') && u.includes('TINGKATAN');
 }
 
 async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[]; darjahColumnFound: boolean }> {
@@ -356,8 +373,11 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
     const className = String(row[kelasIdx] ?? '').trim();
     const classType = jenisIdx >= 0 ? String(row[jenisIdx] ?? '').trim() : '';
     let rawYear = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
-    if (rawYear) carryDarjah = rawYear;
-    else if (carryDarjah && tahunIdx >= 0) rawYear = carryDarjah;
+    if (rawYear && !looksLikeHeaderCell(rawYear)) {
+      carryDarjah = rawYear;
+    } else if (carryDarjah && tahunIdx >= 0) {
+      rawYear = carryDarjah;
+    }
     const yearLevel = normalizeDarjahLabel(rawYear, className);
 
     if (!studentName || !className) continue;

@@ -109,14 +109,14 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
         <>
           <DarjahFilterBar
             onChange={setDarjahFilter}
-            title="① Ketik darjah (D1–D6 / PRA) — hanya kelas yang ada kolum DARJAH dalam Sheet"
+            title="① Ketik darjah (D1–D6 / PRA) — nilai Sheet: 1–6 / Tingkatan, bukan tahun 2025"
             value={darjahFilter}
           />
           {darjahDataMissing && (
             <p className="login-warning">
-              <strong>Darjah belum dalam data</strong> (semua kelas papar «—»). Butang D1–D6 tidak akan tapis apa-apa sehingga anda{' '}
-              <strong>import semula Excel</strong> dengan kolum <strong>DARJAH</strong> (fail JBA: darjah kadang hanya pada baris pertama
-              blok — app akan isi ke bawah automatik). Atau ketik <strong>Semua</strong> + cari nama kelas.
+              <strong>Darjah 1–6 belum dikenal pasti</strong> dalam Sheet (mungkin tahun 2025 / tajuk kolum, bukan tingkatan). Butang D1–D6
+              papar <strong>semua kelas</strong> sementara. <strong>Import semula Excel</strong> — nilai kolum <strong>TAHUN / TINGKATAN</strong>{' '}
+              patut <strong>1, 2, 3…</strong> atau <strong>Tingkatan 2</strong>, bukan tahun kalendar. Kemudian <strong>Segarkan dari Sheet</strong>.
             </p>
           )}
           {filterHadNoMatch && (
