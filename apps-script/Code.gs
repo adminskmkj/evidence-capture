@@ -1,5 +1,15 @@
 // Evidence Pentaksiran — Google Apps Script Backend
 // Deploy as a Web App (Execute as: Me, Who has access: Anyone)
+// Semak deploy: buka URL /exec dalam browser → mesti ada version + actions
+
+function doGet() {
+  return jsonResponse({
+    ok: true,
+    service: 'EvidencePentaksiran',
+    version: '2026-07-06',
+    actions: ['login', 'getBootstrapData', 'uploadStudents', 'saveSubjects', 'listEvidence', 'uploadEvidence'],
+  });
+}
 
 function doPost(e) {
   try {
@@ -150,7 +160,7 @@ function writeUserRows(sheet, rows) {
       rows[i].studentName || ''
     ]);
   }
-  sheet.getRange(2, 1, values.length, 4).setValues(values);
+  sheet.getRange(2, 1, 1 + values.length, 4).setValues(values);
 }
 
 // --- Subjek per pengguna (sheet SubjekPengguna) ---

@@ -87,6 +87,19 @@ SPREADSHEET_ID   = <SPREADSHEET_ID dari langkah 2>
 9. Klik **Deploy**, kemudian **Authorize**.
 10. Salin URL deployment (contoh: `https://script.google.com/macros/s/.../exec`).
 
+### ⚠️ Ralat `Unknown action` (Simpan kelas / Simpan setup / Import)
+
+Frontend Vercel **sudah baru**, tetapi **Web App Google masih kod lama** jika anda belum redeploy.
+
+1. Buka project **EvidencePentaksiran** di [script.google.com](https://script.google.com/).
+2. Ganti **semua** kod `Code.gs` dengan fail `apps-script/Code.gs` dari repo GitHub.
+3. **Deploy → Manage deployments** → ikon pensel pada deployment sedia ada.
+4. **Version:** *New version* → **Deploy** (URL `/exec` kekal sama).
+5. **Semak:** buka URL `/exec` dalam tab baru (GET). Respons JSON mesti ada:
+   - `"version":"2026-07-06"`
+   - `"actions"` termasuk `saveSubjects` dan `uploadStudents`
+6. Cuba semula **Simpan setup** / **Simpan murid** dalam app.
+
 ---
 
 ## 4. Vercel

@@ -25,7 +25,13 @@ function xhrPost(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', APPS_SCRIPT_URL, true);
     xhr.setRequestHeader('Content-Type', 'text/plain');
-    xhr.onload = () => { try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({ ok: false, error: 'Invalid response' }); } };
+    xhr.onload = () => {
+      try {
+        resolve(JSON.parse(xhr.responseText));
+      } catch {
+        resolve({ ok: false, error: 'Invalid response' });
+      }
+    };
     xhr.onerror = () => resolve({ ok: false, error: 'Rangkaian gagal' });
     xhr.ontimeout = () => resolve({ ok: false, error: 'Timeout — cuba kurang kelas atau cuba lagi' });
     xhr.timeout = timeoutMs;
@@ -34,13 +40,26 @@ function xhrPost(
   });
 }
 
+export function mapAppsScriptError(message: string | undefined): string {
+  const m = String(message || '').trim();
+  if (!m) return 'Ralat server';
+  if (m === 'Unknown action' || m.includes('Unknown action')) {
+    return (
+      'Backend Google Apps Script LAMA (tiada saveSubjects/uploadStudents). ' +
+      'Buka script.google.com → paste apps-script/Code.gs → Deploy → Manage deployments → Edit → New version → Deploy. ' +
+      'Semak: buka URL /exec dalam browser, mesti ada "version":"2026-07-06".'
+    );
+  }
+  return m;
+}
+
 export async function login(name: string): Promise<{ ok: boolean; newUser?: boolean; classes?: unknown[]; students?: unknown[]; error?: string }> {
   const resp = await xhrPost({ action: 'login', userName: name }, { skipUser: true });
   if (resp.ok) {
     setUser(name);
     return { ok: true, newUser: !!resp.newUser, classes: resp.classes as unknown[], students: resp.students as unknown[] };
   }
-  return { ok: false, error: resp.error as string };
+  return { ok: false, error: mapAppsScriptError(resp.error as string) };
 }
 
 export async function getBootstrapData(): Promise<{ classes: unknown[]; students: unknown[]; subjects: unknown[] }> {
@@ -73,7 +92,7 @@ export async function saveSubjects(
     { action: 'saveSubjects', subjects, replaceAll: opts?.replaceAll !== false },
     { timeoutMs: 60000 },
   );
-  return resp.ok ? { ok: true } : { ok: false, error: (resp.error as string) || 'Gagal simpan subjek' };
+  return resp.ok ? { ok: true } : { ok: false, error: mapAppsScriptError(resp.error as string) };
 }
 
 const UPLOAD_CHUNK = 250;
@@ -91,7 +110,7 @@ export async function uploadStudents(
       { action: 'uploadStudents', rows: chunk, mode },
       { timeoutMs: 120000 },
     );
-    if (!resp.ok) return { ok: false, count: total, error: (resp.error as string) || 'Gagal upload' };
+    if (!resp.ok) return { ok: false, count: total, error: mapAppsScriptError(resp.error as string) };
     total += (resp.count as number) || chunk.length;
   }
   return { ok: true, count: total };
