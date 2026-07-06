@@ -117,14 +117,35 @@ function parseDarjahFromClassName(className: string): number | null {
   return null;
 }
 
-export function formatYearLevelDisplay(yearLevel: string): string {
-  if (!yearLevel || yearLevel === '—') return '—';
-  if (isCalendarYear(yearLevel) || looksLikeHeaderLabel(yearLevel)) return '—';
+function looksLikeOpaqueSchoolCode(text: string): boolean {
+  const t = String(text || '').trim();
+  if (!/^\d{3,5}$/.test(t)) return false;
+  if (isCalendarYear(t)) return false;
+  const n = parseDarjahNumber(t);
+  return n === null;
+}
+
+export function formatYearLevelDisplay(yearLevel: string, className?: string): string {
+  if (!yearLevel || yearLevel === '—') {
+    const fallback = normalizeDarjahLabel('', className);
+    return fallback === '—' ? '—' : fallback;
+  }
+  if (isCalendarYear(yearLevel) || looksLikeHeaderLabel(yearLevel)) {
+    const fallback = normalizeDarjahLabel('', className);
+    return fallback === '—' ? '—' : fallback;
+  }
+  if (looksLikeOpaqueSchoolCode(yearLevel)) {
+    const fallback = normalizeDarjahLabel('', className);
+    return fallback === '—' ? '—' : fallback;
+  }
   const n = parseDarjahNumber(yearLevel);
   if (n) return `Darjah ${n}`;
   if (/^darjah\s*\d/i.test(yearLevel)) return yearLevel.replace(/^darjah/i, 'Darjah');
   if (/prasekolah|^pra\b/i.test(yearLevel)) return 'Prasekolah';
   const malay = parseMalayDarjahWord(yearLevel);
   if (malay) return `Darjah ${malay}`;
+  if (/^darjah/i.test(yearLevel.trim())) return yearLevel.trim().replace(/^darjah/i, 'Darjah');
+  const fallback = normalizeDarjahLabel(yearLevel, className);
+  if (fallback !== '—' && fallback !== yearLevel) return fallback;
   return yearLevel;
 }

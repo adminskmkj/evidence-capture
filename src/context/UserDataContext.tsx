@@ -4,6 +4,7 @@ import {
   filterTeachingClasses,
   normalizeUserSubjects,
   subjectsToTeachingSlots,
+  dedupeTeachingSlots,
   type TeachingSlot,
 } from '../data/subjectSetup';
 import { countStudentsInClass, normalizeUserBootstrap } from '../data/userData';
@@ -38,7 +39,7 @@ async function fetchUserData(): Promise<{
   const normalized = normalizeUserBootstrap(resp.classes, resp.students);
   const subjects = normalizeUserSubjects(resp.subjects, normalized.classes);
   const teachingClasses = filterTeachingClasses(normalized.classes, subjects);
-  const teachingSlots = subjectsToTeachingSlots(subjects, normalized.classes);
+  const teachingSlots = dedupeTeachingSlots(subjectsToTeachingSlots(subjects, normalized.classes));
 
   let error = '';
   if (!normalized.classes.length) {

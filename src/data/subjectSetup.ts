@@ -1,3 +1,4 @@
+import { formatYearLevelDisplay } from './darjah';
 import type { ClassGroup, Subject } from '../types/domain';
 import { slugId } from './userData';
 
@@ -18,6 +19,7 @@ export interface TeachingSlot {
   class_id: string;
   class_name: string;
   year_level: string;
+  jenis_kelas?: string;
 }
 
 export interface ClassSubjectLine {
@@ -78,6 +80,7 @@ export function subjectsToTeachingSlots(subjects: Subject[], allClasses: ClassGr
         class_id: cid,
         class_name: c.class_name,
         year_level: c.year_level,
+        jenis_kelas: c.jenis_kelas,
       });
     }
   }
@@ -142,9 +145,33 @@ export function subjectsToApiPayload(subjects: Subject[], classes: ClassGroup[])
   }));
 }
 
+export function dedupeTeachingSlots(slots: TeachingSlot[]): TeachingSlot[] {
+  const seen = new Set<string>();
+  const out: TeachingSlot[] = [];
+  for (const s of slots) {
+    const key = `${s.class_id}\x1f${s.subject_name.trim().toUpperCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out;
+}
+
 export function formatTeachingSlotLabel(slot: TeachingSlot): string {
-  const y = slot.year_level && slot.year_level !== '—' ? ` (${slot.year_level})` : '';
-  return `${slot.subject_name} · ${slot.class_name}${y}`;
+  const darjah = formatYearLevelDisplay(slot.year_level, slot.class_name);
+  const darjahPart = darjah !== '—' ? `${darjah} · ` : '';
+  const jenis =
+    slot.jenis_kelas && slot.jenis_kelas !== '—' && slot.jenis_kelas.trim()
+      ? ` (${slot.jenis_kelas})`
+      : '';
+  return `${slot.subject_name} · ${darjahPart}${slot.class_name}${jenis}`;
+}
+
+export function formatTeachingSlotMeta(slot: TeachingSlot, studentCount: number): string {
+  const darjah = formatYearLevelDisplay(slot.year_level, slot.class_name);
+  const parts = [`${studentCount} murid`];
+  if (darjah !== '—') parts.push(darjah);
+  return parts.join(' · ');
 }
 
 export function findTeachingSlot(

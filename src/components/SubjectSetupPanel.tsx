@@ -56,10 +56,22 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
     }
     setError('');
     setStatus('idle');
-    setLines((prev) => [
-      ...prev,
-      { id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, classId, subjectName },
-    ]);
+    setLines((prev) => {
+      const dup = prev.some(
+        (l) =>
+          l.classId === classId &&
+          l.subjectName.trim().toUpperCase() === subjectName.toUpperCase(),
+      );
+      if (dup) {
+        setError('Subjek ini untuk kelas itu sudah dalam senarai.');
+        setStatus('error');
+        return prev;
+      }
+      return [
+        ...prev,
+        { id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, classId, subjectName },
+      ];
+    });
     setPickSubject('');
   }
 
