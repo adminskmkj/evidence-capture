@@ -1,5 +1,4 @@
 import { useUserData } from '../context/UserDataContext';
-import { subjects } from '../data/seed';
 
 interface DashboardProps {
   evidenceThisMonth?: number;
@@ -8,7 +7,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport }: DashboardProps) {
-  const { loading, error, classes, students, countStudentsByClassId } = useUserData();
+  const { loading, error, classes, students, subjects, countStudentsByClassId } = useUserData();
 
   return (
     <>
@@ -17,7 +16,7 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
           <p className="eyebrow">Dashboard</p>
           <h2>Simpan evidence gambar dan video pendek dengan tersusun.</h2>
           <p className="hero-copy">
-            Kelas dan murid ikut akaun anda (tab Google Sheet nama pengguna), bukan tab Students demo.
+            Kelas &amp; murid ikut akaun anda. Subjek anda setup sekali dalam <strong>Tetapan</strong> (jana dari Excel/kelas).
           </p>
         </div>
 
@@ -28,8 +27,8 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
 
       <section className="stat-grid" aria-label="Statistik dashboard">
         <article className="stat-card">
-          <span>Subjek (tetapan app)</span>
-          <strong>{subjects.length}</strong>
+          <span>Subjek anda</span>
+          <strong>{loading ? '…' : subjects.length}</strong>
         </article>
         <article className="stat-card">
           <span>Kelas anda</span>
@@ -48,9 +47,11 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
       {error && (
         <p className="capture-error" style={{ marginBottom: '1rem' }}>
           {error}{' '}
-          <button className="text-button" onClick={onOpenImport} type="button">
-            Muat naik senarai murid
-          </button>
+          {error.includes('kelas') && (
+            <button className="text-button" onClick={onOpenImport} type="button">
+              Muat naik Excel
+            </button>
+          )}
         </p>
       )}
 
@@ -58,7 +59,7 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
         <div className="form-header" style={{ marginBottom: '0.75rem' }}>
           <h3 style={{ margin: 0 }}>Kelas anda</h3>
           <p className="context-note" style={{ margin: '0.35rem 0 0' }}>
-            Setiap <strong>NAMA KELAS</strong> dalam Excel jadi satu kelas di sini — tak perlu butang cipta kelas manual.
+            Setiap <strong>NAMA KELAS</strong> dalam Excel jadi satu kelas di sini.
           </p>
         </div>
 
@@ -91,7 +92,12 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
         )}
       </section>
 
-      <section className="subject-grid" aria-label="Shortcut subjek">
+      <section className="subject-grid" aria-label="Subjek anda">
+        {!loading && subjects.length === 0 && (
+          <p className="login-warning">
+            Tiada subjek lagi. Pergi <strong>Tetapan → Setup subjek</strong> (jana dari kelas import).
+          </p>
+        )}
         {subjects.map((subject) => (
           <article className="subject-card" key={subject.subject_id}>
             <div className="subject-card__header">

@@ -6,36 +6,11 @@ export interface SubjectClassLink {
 }
 
 export const subjects: Subject[] = [
-  {
-    subject_id: 'muzik-t1',
-    subject_name: 'Muzik Tahun 1',
-    year_level: 'Tahun 1',
-    active: true,
-  },
-  {
-    subject_id: 'sains-t1',
-    subject_name: 'Sains Tahun 1',
-    year_level: 'Tahun 1',
-    active: true,
-  },
-  {
-    subject_id: 'psv-t2',
-    subject_name: 'PSV Tahun 2',
-    year_level: 'Tahun 2',
-    active: true,
-  },
-  {
-    subject_id: 'psv-t3',
-    subject_name: 'PSV Tahun 3',
-    year_level: 'Tahun 3',
-    active: true,
-  },
-  {
-    subject_id: 'sains-t3',
-    subject_name: 'Sains Tahun 3',
-    year_level: 'Tahun 3',
-    active: true,
-  },
+  { subject_id: 'muzik-t1', subject_name: 'Muzik Tahun 1', year_level: 'Tahun 1', class_ids: ['1-kelas-a'], active: true },
+  { subject_id: 'sains-t1', subject_name: 'Sains Tahun 1', year_level: 'Tahun 1', class_ids: ['1-kelas-a'], active: true },
+  { subject_id: 'psv-t2', subject_name: 'PSV Tahun 2', year_level: 'Tahun 2', class_ids: ['2-kelas-a', '2-kelas-b'], active: true },
+  { subject_id: 'psv-t3', subject_name: 'PSV Tahun 3', year_level: 'Tahun 3', class_ids: ['3-kelas-a'], active: true },
+  { subject_id: 'sains-t3', subject_name: 'Sains Tahun 3', year_level: 'Tahun 3', class_ids: ['3-kelas-a', '3-kelas-b', '3-kelas-c', '3-kelas-d', '3-kelas-e', '3-kelas-f'], active: true },
 ];
 
 export const classes: ClassGroup[] = [

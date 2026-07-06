@@ -1,15 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { getBootstrapData } from '../api/appsScriptClient';
+import { normalizeUserSubjects } from '../data/subjectSetup';
 import { countStudentsInClass, normalizeUserBootstrap } from '../data/userData';
-import { subjects } from '../data/seed';
-import type { ClassGroup, Student } from '../types/domain';
+import type { ClassGroup, Student, Subject } from '../types/domain';
 
 interface UserDataContextValue {
   loading: boolean;
   error: string;
   classes: ClassGroup[];
   students: Student[];
-  subjects: typeof subjects;
+  subjects: Subject[];
   refresh: () => Promise<void>;
   getStudentsByClassId: (classId: string) => Student[];
   countStudentsByClassId: (classId: string) => number;
@@ -17,13 +17,24 @@ interface UserDataContextValue {
 
 const UserDataContext = createContext<UserDataContextValue | null>(null);
 
-async function fetchUserData(): Promise<{ classes: ClassGroup[]; students: Student[]; error: string }> {
+async function fetchUserData(): Promise<{
+  classes: ClassGroup[];
+  students: Student[];
+  subjects: Subject[];
+  error: string;
+}> {
   const resp = await getBootstrapData();
   const normalized = normalizeUserBootstrap(resp.classes, resp.students);
-  const error = !normalized.classes.length
-    ? 'Tiada kelas lagi. Muat naik senarai murid dalam Tetapan.'
-    : '';
-  return { ...normalized, error };
+  const subjects = normalizeUserSubjects(resp.subjects, normalized.classes);
+
+  let error = '';
+  if (!normalized.classes.length) {
+    error = 'Tiada kelas lagi. Muat naik senarai murid dalam Tetapan.';
+  } else if (!subjects.length) {
+    error = 'Tiada subjek lagi. Setup subjek dalam Tetapan (jana dari kelas import).';
+  }
+
+  return { ...normalized, subjects, error };
 }
 
 export function UserDataProvider({ userName, children }: { userName: string; children: ReactNode }) {
@@ -31,6 +42,7 @@ export function UserDataProvider({ userName, children }: { userName: string; chi
   const [error, setError] = useState('');
   const [classes, setClasses] = useState<ClassGroup[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
 
   const refresh = useCallback(async () => {
     if (!userName) return;
@@ -40,11 +52,13 @@ export function UserDataProvider({ userName, children }: { userName: string; chi
       const data = await fetchUserData();
       setClasses(data.classes);
       setStudents(data.students);
+      setSubjects(data.subjects);
       setError(data.error);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Gagal muat data pengguna');
       setClasses([]);
       setStudents([]);
+      setSubjects([]);
     } finally {
       setLoading(false);
     }
@@ -58,6 +72,7 @@ export function UserDataProvider({ userName, children }: { userName: string; chi
         if (cancelled) return;
         setClasses(data.classes);
         setStudents(data.students);
+        setSubjects(data.subjects);
         setError(data.error);
       })
       .catch((err) => {
@@ -65,6 +80,7 @@ export function UserDataProvider({ userName, children }: { userName: string; chi
         setError(err instanceof Error ? err.message : 'Gagal muat data pengguna');
         setClasses([]);
         setStudents([]);
+        setSubjects([]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -83,7 +99,7 @@ export function UserDataProvider({ userName, children }: { userName: string; chi
     refresh,
     getStudentsByClassId: (classId: string) => students.filter((s) => s.class_id === classId),
     countStudentsByClassId: (classId: string) => countStudentsInClass(students, classId),
-  }), [loading, error, classes, students, refresh]);
+  }), [loading, error, classes, students, subjects, refresh]);
 
   return <UserDataContext.Provider value={value}>{children}</UserDataContext.Provider>;
 }

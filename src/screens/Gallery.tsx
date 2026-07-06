@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { listEvidence, type ListEvidenceFilters } from '../api/appsScriptClient';
-import { getClassesForSubject, subjects } from '../data/seed';
+import { useUserData } from '../context/UserDataContext';
+import { getClassesForSubject } from '../data/subjectSetup';
 import type { EvidenceItem } from '../types/domain';
 
 interface GalleryProps {
@@ -8,6 +9,7 @@ interface GalleryProps {
 }
 
 export function Gallery({ onViewEvidence }: GalleryProps) {
+  const { subjects, classes } = useUserData();
   const [items, setItems] = useState<EvidenceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<ListEvidenceFilters>({});
@@ -51,7 +53,10 @@ export function Gallery({ onViewEvidence }: GalleryProps) {
     setLoading(false);
   }
 
-  const classOptions = filters.subject_id ? getClassesForSubject(filters.subject_id) : [];
+  const classOptions = useMemo(
+    () => (filters.subject_id ? getClassesForSubject(filters.subject_id, subjects, classes) : []),
+    [filters.subject_id, subjects, classes],
+  );
 
   return (
     <section>

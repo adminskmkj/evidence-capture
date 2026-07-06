@@ -43,13 +43,38 @@ export async function login(name: string): Promise<{ ok: boolean; newUser?: bool
   return { ok: false, error: resp.error as string };
 }
 
-export async function getBootstrapData(): Promise<{ classes: unknown[]; students: unknown[] }> {
+export async function getBootstrapData(): Promise<{ classes: unknown[]; students: unknown[]; subjects: unknown[] }> {
   const resp = await xhrPost({ action: 'getBootstrapData' });
-  if (resp.ok) return { classes: resp.classes as unknown[] || [], students: resp.students as unknown[] || [] };
-  return { classes: [], students: [] };
+  if (resp.ok) {
+    return {
+      classes: (resp.classes as unknown[]) || [],
+      students: (resp.students as unknown[]) || [],
+      subjects: (resp.subjects as unknown[]) || [],
+    };
+  }
+  return { classes: [], students: [], subjects: [] };
 }
 
-export type StudentImportRow = { className: string; classType: string; studentName: string };
+export type StudentImportRow = { className: string; classType: string; studentName: string; yearLevel?: string };
+
+export type SubjectSaveRow = {
+  subject_id: string;
+  subject_name: string;
+  year_level: string;
+  jenis_kelas: string;
+  class_names: string[];
+};
+
+export async function saveSubjects(
+  subjects: SubjectSaveRow[],
+  opts?: { replaceAll?: boolean },
+): Promise<{ ok: boolean; error?: string }> {
+  const resp = await xhrPost(
+    { action: 'saveSubjects', subjects, replaceAll: opts?.replaceAll !== false },
+    { timeoutMs: 60000 },
+  );
+  return resp.ok ? { ok: true } : { ok: false, error: (resp.error as string) || 'Gagal simpan subjek' };
+}
 
 const UPLOAD_CHUNK = 250;
 

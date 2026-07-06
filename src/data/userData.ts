@@ -26,7 +26,7 @@ export function normalizeUserBootstrap(
   apiClasses: unknown[],
   apiStudents: unknown[],
 ): { classes: ClassGroup[]; students: Student[] } {
-  const classMeta = new Map<string, { class_name: string; class_type: string }>();
+  const classMeta = new Map<string, { class_name: string; jenis_kelas: string; year_level: string }>();
 
   for (const raw of apiClasses) {
     const c = raw as ApiUserClass;
@@ -35,7 +35,8 @@ export function normalizeUserBootstrap(
     if (!classMeta.has(className)) {
       classMeta.set(className, {
         class_name: className,
-        class_type: String(c.class_type || c.year || '').trim(),
+        jenis_kelas: String(c.class_type || '').trim(),
+        year_level: String(c.year || '').trim() || '—',
       });
     }
   }
@@ -49,7 +50,7 @@ export function normalizeUserBootstrap(
     if (!studentName || !className) continue;
 
     if (!classMeta.has(className)) {
-      classMeta.set(className, { class_name: className, class_type: '' });
+      classMeta.set(className, { class_name: className, jenis_kelas: '', year_level: '—' });
     }
 
     const classId = slugId(className);
@@ -65,7 +66,8 @@ export function normalizeUserBootstrap(
   const classes: ClassGroup[] = Array.from(classMeta.entries()).map(([className, meta]) => ({
     class_id: slugId(className),
     class_name: className,
-    year_level: meta.class_type || '—',
+    year_level: meta.year_level,
+    jenis_kelas: meta.jenis_kelas || undefined,
     active: true,
   }));
 

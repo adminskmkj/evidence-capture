@@ -8,6 +8,8 @@ export interface Subject {
   subject_id: string;
   subject_name: string;
   year_level: string;
+  jenis_kelas?: string;
+  class_ids: string[];
   active: boolean;
 }
 
@@ -15,6 +17,7 @@ export interface ClassGroup {
   class_id: string;
   class_name: string;
   year_level: string;
+  jenis_kelas?: string;
   active: boolean;
 }
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useUserData } from '../context/UserDataContext';
+import { getClassesForSubject } from '../data/subjectSetup';
 import { SelectPopup } from './SelectPopup';
 
 export interface EvidenceFormData {
@@ -26,15 +27,29 @@ export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSub
   const [notes, setNotes] = useState('');
   const [popup, setPopup] = useState<'subject' | 'class' | 'students' | null>(null);
 
-  const availableStudents = useMemo(() => (classId ? getStudentsByClassId(classId) : []), [classId, getStudentsByClassId]);
+  const classOptions = useMemo(
+    () => (subjectId ? getClassesForSubject(subjectId, subjects, classes) : classes),
+    [subjectId, subjects, classes],
+  );
 
-  const isValid = subjectId !== '' && classId !== '' && studentIds.length > 0 && activityTitle.trim().length > 0;
+  const resolvedClassId = classOptions.some((c) => c.class_id === classId) ? classId : '';
+
+  const availableStudents = useMemo(
+    () => (resolvedClassId ? getStudentsByClassId(resolvedClassId) : []),
+    [resolvedClassId, getStudentsByClassId],
+  );
+
+  const isValid =
+    subjectId !== '' &&
+    resolvedClassId !== '' &&
+    studentIds.length > 0 &&
+    activityTitle.trim().length > 0;
   const subjectName = subjects.find((s) => s.subject_id === subjectId)?.subject_name || '';
-  const className = classes.find((c) => c.class_id === classId)?.class_name || '';
+  const className = classes.find((c) => c.class_id === resolvedClassId)?.class_name || '';
 
   function handleSubmit() {
     if (!isValid) return;
-    onSubmit({ subjectId, classId, studentIds, activityTitle: activityTitle.trim(), notes: notes.trim() });
+    onSubmit({ subjectId, classId: resolvedClassId, studentIds, activityTitle: activityTitle.trim(), notes: notes.trim() });
   }
 
   return (
@@ -59,6 +74,9 @@ export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSub
             )}
           </p>
         )}
+        {!loading && subjects.length === 0 && (
+          <p className="capture-error">Tiada subjek. Setup dalam Tetapan.</p>
+        )}
         {classes.length > 0 && (
           <button className="select-trigger" onClick={() => setPopup('class')} type="button">
             {className || <span className="select-trigger__placeholder">Pilih kelas</span>}
@@ -66,7 +84,7 @@ export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSub
         )}
       </fieldset>
 
-      {classId && (
+      {resolvedClassId && (
         <fieldset className="form-group">
           <legend>Murid ({studentIds.length} dipilih)</legend>
           <button className="select-trigger" onClick={() => setPopup('students')} type="button">
@@ -92,16 +110,16 @@ export function EvidenceForm({ initialSubjectId = '', initialClassId = '', onSub
           <button
             className={`popup-item ${subjectId === s.subject_id ? 'popup-item--active' : ''}`}
             key={s.subject_id}
-            onClick={() => { setSubjectId(s.subject_id); setPopup(null); }}
+            onClick={() => { setSubjectId(s.subject_id); setClassId(''); setStudentIds([]); setPopup(null); }}
             type="button"
           >{s.subject_name}</button>
         ))}
       </SelectPopup>
 
       <SelectPopup open={popup === 'class'} title="Pilih Kelas" onClose={() => setPopup(null)}>
-        {classes.map((c) => (
+        {classOptions.map((c) => (
           <button
-            className={`popup-item ${classId === c.class_id ? 'popup-item--active' : ''}`}
+            className={`popup-item ${resolvedClassId === c.class_id ? 'popup-item--active' : ''}`}
             key={c.class_id}
             onClick={() => { setClassId(c.class_id); setStudentIds([]); setPopup(null); }}
             type="button"

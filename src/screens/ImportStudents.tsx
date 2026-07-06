@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'react';
 import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
+import {
+  buildSubjectDraftsFromRows,
+  saveSubjectDrafts,
+  type SubjectDraft,
+} from '../components/SubjectSetupPanel';
+import type { ClassGroup } from '../types/domain';
+import { slugId } from '../data/userData';
 
 interface ImportStudentsProps {
   onDone: () => void;
 }
 
-type Step = 'idle' | 'parsing' | 'pick-classes' | 'uploading' | 'done' | 'error';
+type Step = 'idle' | 'parsing' | 'pick-classes' | 'pick-subjects' | 'uploading' | 'done' | 'error';
 
 interface ClassSummary {
   className: string;
@@ -19,6 +26,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
   const [savedCount, setSavedCount] = useState(0);
+  const [subjectDrafts, setSubjectDrafts] = useState<SubjectDraft[]>([]);
 
   const classSummaries = useMemo(() => summarizeClasses(allRows), [allRows]);
 
@@ -63,22 +71,46 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     setSelected(next);
   }
 
-  async function handleSave() {
+  function goToSubjectSetup() {
     if (!selectedRows.length) {
       setError('Pilih sekurang-kurangnya satu kelas.');
       setStep('error');
       return;
     }
+    setSubjectDrafts(buildSubjectDraftsFromRows(selectedRows));
+    setStep('pick-subjects');
+  }
+
+  function updateSubjectDraft(key: string, patch: Partial<SubjectDraft>) {
+    setSubjectDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
+  }
+
+  async function handleFinalSave() {
+    if (!selectedRows.length) return;
     setStep('uploading');
     setError('');
+
     const resp = await uploadStudents(selectedRows, 'merge');
-    if (resp.ok) {
-      setSavedCount(selectedRows.length);
-      setStep('done');
-    } else {
-      setError(resp.error || 'Gagal simpan');
+    if (!resp.ok) {
+      setError(resp.error || 'Gagal simpan murid');
       setStep('error');
+      return;
     }
+
+    const classGroups = classesFromImportRows(selectedRows);
+    const withNames = subjectDrafts.filter((d) => d.enabled && d.subjectName.trim());
+    if (withNames.length) {
+      const subResp = await saveSubjectDrafts(withNames, classGroups);
+      if (!subResp.ok) {
+        setError(subResp.error || 'Murid OK, subjek gagal — setup dalam Tetapan');
+        setSavedCount(selectedRows.length);
+        setStep('done');
+        return;
+      }
+    }
+
+    setSavedCount(selectedRows.length);
+    setStep('done');
   }
 
   function resetAll() {
@@ -137,23 +169,64 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
             <button
               className="primary-action"
               disabled={!selectedRows.length}
-              onClick={() => void handleSave()}
+              onClick={goToSubjectSetup}
               type="button"
             >
-              Simpan {selectedRows.length} murid ({selectedClassCount} kelas)
+              Seterusnya: setup subjek ({selectedClassCount} kelas)
+            </button>
+          </>
+        )}
+
+        {step === 'pick-subjects' && (
+          <>
+            <p className="context-note">
+              Cadangan dari <strong>JENIS KELAS</strong> + <strong>TAHUN/TINGKATAN</strong> Excel. Isi nama subjek anda (Muzik, Sains, …).
+            </p>
+            <ul className="subject-draft-list">
+              {subjectDrafts.map((d) => (
+                <li className="subject-draft-row" key={d.key}>
+                  <label className="import-class-row">
+                    <input
+                      checked={d.enabled}
+                      onChange={(e) => updateSubjectDraft(d.key, { enabled: e.target.checked })}
+                      type="checkbox"
+                    />
+                    <span className="import-class-meta">
+                      {d.jenisKelas} · {d.yearLevel} · {d.classNames.length} kelas
+                    </span>
+                  </label>
+                  <input
+                    className="form-input"
+                    onChange={(e) => updateSubjectDraft(d.key, { subjectName: e.target.value })}
+                    placeholder="Nama subjek"
+                    type="text"
+                    value={d.subjectName}
+                  />
+                </li>
+              ))}
+            </ul>
+            <button className="secondary-action" onClick={() => setStep('pick-classes')} type="button">
+              Kembali
+            </button>
+            <button className="primary-action" onClick={() => void handleFinalSave()} type="button">
+              Simpan murid + subjek
+            </button>
+            <button className="form-chip" onClick={() => { setSubjectDrafts((d) => d.map((x) => ({ ...x, enabled: false }))); void handleFinalSave(); }} type="button">
+              Langkau subjek (Tetapan nanti)
             </button>
           </>
         )}
 
         {step === 'uploading' && (
           <p className="capture-loading">
-            Menyimpan {selectedRows.length} murid… (boleh ambil ~1 minit, jangan tutup)
+            Menyimpan {selectedRows.length} murid &amp; subjek… (jangan tutup)
           </p>
         )}
 
         {step === 'done' && (
           <>
             <p className="context-note">✅ {savedCount} murid dari {selectedClassCount} kelas disimpan.</p>
+            <p className="context-note">Subjek boleh dikemas kini dalam Tetapan bila-bila masa.</p>
             <button className="primary-action" onClick={onDone} type="button">
               Mula Guna App
             </button>
@@ -163,7 +236,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
         {step === 'error' && (
           <>
             <p className="capture-error">{error}</p>
-            <button className="primary-action" onClick={allRows.length ? () => setStep('pick-classes') : resetAll} type="button">
+            <button className="primary-action" onClick={allRows.length ? () => setStep(step === 'error' && subjectDrafts.length ? 'pick-subjects' : 'pick-classes') : resetAll} type="button">
               {allRows.length ? 'Kembali pilih kelas' : 'Cuba Lagi'}
             </button>
           </>
@@ -171,6 +244,21 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
       </div>
     </div>
   );
+}
+
+function classesFromImportRows(rows: StudentImportRow[]): ClassGroup[] {
+  const map = new Map<string, ClassGroup>();
+  for (const r of rows) {
+    if (map.has(r.className)) continue;
+    map.set(r.className, {
+      class_id: slugId(r.className),
+      class_name: r.className,
+      year_level: r.yearLevel || '—',
+      jenis_kelas: r.classType || undefined,
+      active: true,
+    });
+  }
+  return [...map.values()];
 }
 
 function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
@@ -215,6 +303,14 @@ function colIndexForJenis(headers: string[]): number {
   return -1;
 }
 
+function colIndexForTahun(headers: string[]): number {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    if (h === 'TAHUN / TINGKATAN' || h === 'TAHUN/TINGKATAN' || h === 'TINGKATAN' || h === 'TAHUN') return i;
+  }
+  return -1;
+}
+
 async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
@@ -225,6 +321,8 @@ async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
   let namaIdx = -1;
   let kelasIdx = -1;
   let jenisIdx = -1;
+
+  let tahunIdx = -1;
 
   const scanLimit = Math.min(matrix.length, 40);
   for (let r = 0; r < scanLimit; r++) {
@@ -237,6 +335,7 @@ async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
       namaIdx = ni;
       kelasIdx = ki;
       jenisIdx = colIndexForJenis(headers);
+      tahunIdx = colIndexForTahun(headers);
       break;
     }
   }
@@ -254,11 +353,12 @@ async function parseExcel(buf: ArrayBuffer): Promise<StudentImportRow[]> {
     const studentName = String(row[namaIdx] ?? '').trim();
     const className = String(row[kelasIdx] ?? '').trim();
     const classType = jenisIdx >= 0 ? String(row[jenisIdx] ?? '').trim() : '';
+    const yearLevel = tahunIdx >= 0 ? String(row[tahunIdx] ?? '').trim() : '';
 
     if (!studentName || !className) continue;
     if (normHeader(studentName) === 'NAMA') continue;
 
-    result.push({ className, classType, studentName });
+    result.push({ className, classType, studentName, yearLevel });
   }
 
   if (!result.length) {
