@@ -1,18 +1,11 @@
 import { useMemo, useState } from 'react';
 import { uploadStudents, type StudentImportRow } from '../api/appsScriptClient';
-import {
-  buildSubjectDraftsFromRows,
-  saveSubjectDrafts,
-  type SubjectDraft,
-} from '../components/SubjectSetupPanel';
-import type { ClassGroup } from '../types/domain';
-import { slugId } from '../data/userData';
 
 interface ImportStudentsProps {
   onDone: () => void;
 }
 
-type Step = 'idle' | 'parsing' | 'pick-classes' | 'pick-subjects' | 'uploading' | 'done' | 'error';
+type Step = 'idle' | 'parsing' | 'pick-classes' | 'uploading' | 'done' | 'error';
 
 interface ClassSummary {
   className: string;
@@ -26,7 +19,6 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [error, setError] = useState('');
   const [savedCount, setSavedCount] = useState(0);
-  const [subjectDrafts, setSubjectDrafts] = useState<SubjectDraft[]>([]);
 
   const classSummaries = useMemo(() => summarizeClasses(allRows), [allRows]);
 
@@ -71,22 +63,12 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
     setSelected(next);
   }
 
-  function goToSubjectSetup() {
+  async function handleSaveMurid() {
     if (!selectedRows.length) {
       setError('Pilih sekurang-kurangnya satu kelas.');
       setStep('error');
       return;
     }
-    setSubjectDrafts(buildSubjectDraftsFromRows(selectedRows));
-    setStep('pick-subjects');
-  }
-
-  function updateSubjectDraft(key: string, patch: Partial<SubjectDraft>) {
-    setSubjectDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
-  }
-
-  async function handleFinalSave() {
-    if (!selectedRows.length) return;
     setStep('uploading');
     setError('');
 
@@ -95,18 +77,6 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
       setError(resp.error || 'Gagal simpan murid');
       setStep('error');
       return;
-    }
-
-    const classGroups = classesFromImportRows(selectedRows);
-    const withNames = subjectDrafts.filter((d) => d.enabled && d.subjectName.trim());
-    if (withNames.length) {
-      const subResp = await saveSubjectDrafts(withNames, classGroups);
-      if (!subResp.ok) {
-        setError(subResp.error || 'Murid OK, subjek gagal — setup dalam Tetapan');
-        setSavedCount(selectedRows.length);
-        setStep('done');
-        return;
-      }
     }
 
     setSavedCount(selectedRows.length);
@@ -145,7 +115,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
         {step === 'pick-classes' && (
           <>
             <p className="context-note">
-              {allRows.length} murid dalam fail · {classSummaries.length} kelas. Tick kelas anda, kemudian simpan.
+              {allRows.length} murid · {classSummaries.length} kelas dalam fail. Simpan ke Sheet, kemudian Tetapan → pilih <strong>kelas yang anda ajar</strong> + subjek.
             </p>
             <div className="import-class-actions">
               <button className="form-chip" onClick={() => selectAll(true)} type="button">Pilih semua</button>
@@ -169,64 +139,26 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
             <button
               className="primary-action"
               disabled={!selectedRows.length}
-              onClick={goToSubjectSetup}
+              onClick={() => void handleSaveMurid()}
               type="button"
             >
-              Seterusnya: setup subjek ({selectedClassCount} kelas)
-            </button>
-          </>
-        )}
-
-        {step === 'pick-subjects' && (
-          <>
-            <p className="context-note">
-              Cadangan dari <strong>JENIS KELAS</strong> + <strong>TAHUN/TINGKATAN</strong> Excel. Isi nama subjek anda (Muzik, Sains, …).
-            </p>
-            <ul className="subject-draft-list">
-              {subjectDrafts.map((d) => (
-                <li className="subject-draft-row" key={d.key}>
-                  <label className="import-class-row">
-                    <input
-                      checked={d.enabled}
-                      onChange={(e) => updateSubjectDraft(d.key, { enabled: e.target.checked })}
-                      type="checkbox"
-                    />
-                    <span className="import-class-meta">
-                      {d.jenisKelas} · {d.yearLevel} · {d.classNames.length} kelas
-                    </span>
-                  </label>
-                  <input
-                    className="form-input"
-                    onChange={(e) => updateSubjectDraft(d.key, { subjectName: e.target.value })}
-                    placeholder="Nama subjek"
-                    type="text"
-                    value={d.subjectName}
-                  />
-                </li>
-              ))}
-            </ul>
-            <button className="secondary-action" onClick={() => setStep('pick-classes')} type="button">
-              Kembali
-            </button>
-            <button className="primary-action" onClick={() => void handleFinalSave()} type="button">
-              Simpan murid + subjek
-            </button>
-            <button className="form-chip" onClick={() => { setSubjectDrafts((d) => d.map((x) => ({ ...x, enabled: false }))); void handleFinalSave(); }} type="button">
-              Langkau subjek (Tetapan nanti)
+              Simpan {selectedRows.length} murid ({selectedClassCount} kelas)
             </button>
           </>
         )}
 
         {step === 'uploading' && (
           <p className="capture-loading">
-            Menyimpan {selectedRows.length} murid &amp; subjek… (jangan tutup)
+            Menyimpan {selectedRows.length} murid… (jangan tutup)
           </p>
         )}
 
         {step === 'done' && (
           <>
             <p className="context-note">✅ {savedCount} murid dari {selectedClassCount} kelas disimpan.</p>
-            <p className="context-note">Subjek boleh dikemas kini dalam Tetapan bila-bila masa.</p>
+            <p className="context-note">
+              Seterusnya: <strong>Tetapan → Setup kelas &amp; subjek</strong> — pilih kelas yang anda ajar + subjek (bukan semua kelas Sheet).
+            </p>
             <button className="primary-action" onClick={onDone} type="button">
               Mula Guna App
             </button>
@@ -236,7 +168,7 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
         {step === 'error' && (
           <>
             <p className="capture-error">{error}</p>
-            <button className="primary-action" onClick={allRows.length ? () => setStep(step === 'error' && subjectDrafts.length ? 'pick-subjects' : 'pick-classes') : resetAll} type="button">
+            <button className="primary-action" onClick={allRows.length ? () => setStep('pick-classes') : resetAll} type="button">
               {allRows.length ? 'Kembali pilih kelas' : 'Cuba Lagi'}
             </button>
           </>
@@ -244,21 +176,6 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
       </div>
     </div>
   );
-}
-
-function classesFromImportRows(rows: StudentImportRow[]): ClassGroup[] {
-  const map = new Map<string, ClassGroup>();
-  for (const r of rows) {
-    if (map.has(r.className)) continue;
-    map.set(r.className, {
-      class_id: slugId(r.className),
-      class_name: r.className,
-      year_level: r.yearLevel || '—',
-      jenis_kelas: r.classType || undefined,
-      active: true,
-    });
-  }
-  return [...map.values()];
 }
 
 function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {

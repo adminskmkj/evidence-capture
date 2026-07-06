@@ -10,6 +10,22 @@ export interface ApiUserSubject {
   class_ids?: string[];
 }
 
+/** Satu baris: kelas ini + subjek ini (kelas sama boleh dua baris, subjek berbeza). */
+export interface TeachingSlot {
+  slot_id: string;
+  subject_id: string;
+  subject_name: string;
+  class_id: string;
+  class_name: string;
+  year_level: string;
+}
+
+export interface ClassSubjectLine {
+  id: string;
+  classId: string;
+  subjectName: string;
+}
+
 export function normalizeUserSubjects(raw: unknown[], classes: ClassGroup[]): Subject[] {
   const nameToId = new Map(classes.map((c) => [c.class_name, c.class_id]));
 
@@ -47,7 +63,97 @@ export function normalizeUserSubjects(raw: unknown[], classes: ClassGroup[]): Su
   return subjects.sort((a, b) => a.subject_name.localeCompare(b.subject_name, 'ms'));
 }
 
-/** Cadangan subjek dari baris Excel (selepas pilih kelas) — satu kumpulan per jenis + tahun. */
+export function subjectsToTeachingSlots(subjects: Subject[], allClasses: ClassGroup[]): TeachingSlot[] {
+  const byId = new Map(allClasses.map((c) => [c.class_id, c]));
+  const slots: TeachingSlot[] = [];
+
+  for (const s of subjects) {
+    for (const cid of s.class_ids) {
+      const c = byId.get(cid);
+      if (!c) continue;
+      slots.push({
+        slot_id: slugId(`${s.subject_id}-${cid}`),
+        subject_id: s.subject_id,
+        subject_name: s.subject_name,
+        class_id: cid,
+        class_name: c.class_name,
+        year_level: c.year_level,
+      });
+    }
+  }
+
+  return slots.sort((a, b) => {
+    const cmp = a.class_name.localeCompare(b.class_name, 'ms');
+    return cmp !== 0 ? cmp : a.subject_name.localeCompare(b.subject_name, 'ms');
+  });
+}
+
+export function filterTeachingClasses(allClasses: ClassGroup[], subjects: Subject[]): ClassGroup[] {
+  const ids = new Set(subjects.flatMap((s) => s.class_ids));
+  if (!ids.size) return [];
+  return allClasses.filter((c) => ids.has(c.class_id));
+}
+
+export function linesFromSubjects(subjects: Subject[], allClasses: ClassGroup[]): ClassSubjectLine[] {
+  const byId = new Map(allClasses.map((c) => [c.class_id, c]));
+  const lines: ClassSubjectLine[] = [];
+
+  for (const s of subjects) {
+    for (const cid of s.class_ids) {
+      if (!byId.has(cid)) continue;
+      lines.push({
+        id: slugId(`${s.subject_id}-${cid}`),
+        classId: cid,
+        subjectName: s.subject_name,
+      });
+    }
+  }
+  return lines;
+}
+
+/** Simpan: satu subjek sheet row per baris kelas+subjek. */
+export function subjectsFromClassSubjectLines(lines: ClassSubjectLine[], allClasses: ClassGroup[]): Subject[] {
+  const byId = new Map(allClasses.map((c) => [c.class_id, c]));
+
+  return lines
+    .filter((l) => l.classId && l.subjectName.trim())
+    .map((l) => {
+      const c = byId.get(l.classId);
+      const name = l.subjectName.trim();
+      return {
+        subject_id: slugId(`${name}-${l.classId}`),
+        subject_name: name,
+        year_level: c?.year_level || '—',
+        jenis_kelas: c?.jenis_kelas,
+        class_ids: [l.classId],
+        active: true,
+      } satisfies Subject;
+    });
+}
+
+export function subjectsToApiPayload(subjects: Subject[], classes: ClassGroup[]): ApiUserSubject[] {
+  const idToName = new Map(classes.map((c) => [c.class_id, c.class_name]));
+  return subjects.map((s) => ({
+    subject_id: s.subject_id,
+    subject_name: s.subject_name,
+    year_level: s.year_level,
+    jenis_kelas: s.jenis_kelas || '',
+    class_names: s.class_ids.map((id) => idToName.get(id) || id).filter(Boolean),
+  }));
+}
+
+export function getClassesForSubject(
+  subjectId: string,
+  subjects: Subject[],
+  teachingClasses: ClassGroup[],
+): ClassGroup[] {
+  const subject = subjects.find((s) => s.subject_id === subjectId);
+  if (!subject?.class_ids.length) return teachingClasses;
+  const set = new Set(subject.class_ids);
+  return teachingClasses.filter((c) => set.has(c.class_id));
+}
+
+/** @deprecated import flow — guna Tetapan kelas+subjek */
 export function proposeSubjectsFromImportRows(
   rows: { className: string; classType: string; yearLevel: string }[],
 ): { key: string; yearLevel: string; jenisKelas: string; classNames: string[]; subjectName: string }[] {
@@ -74,7 +180,6 @@ export function proposeSubjectsFromImportRows(
   }));
 }
 
-/** Cadangan dari kelas yang sudah disimpan (Tetapan → Jana dari kelas). */
 export function proposeSubjectsFromClasses(classes: ClassGroup[]): ReturnType<typeof proposeSubjectsFromImportRows> {
   return proposeSubjectsFromImportRows(
     classes.map((c) => ({
@@ -83,26 +188,4 @@ export function proposeSubjectsFromClasses(classes: ClassGroup[]): ReturnType<ty
       yearLevel: c.year_level || '—',
     })),
   );
-}
-
-export function subjectsToApiPayload(subjects: Subject[], classes: ClassGroup[]): ApiUserSubject[] {
-  const idToName = new Map(classes.map((c) => [c.class_id, c.class_name]));
-  return subjects.map((s) => ({
-    subject_id: s.subject_id,
-    subject_name: s.subject_name,
-    year_level: s.year_level,
-    jenis_kelas: s.jenis_kelas || '',
-    class_names: s.class_ids.map((id) => idToName.get(id) || id).filter(Boolean),
-  }));
-}
-
-export function getClassesForSubject(
-  subjectId: string,
-  subjects: Subject[],
-  allClasses: ClassGroup[],
-): ClassGroup[] {
-  const subject = subjects.find((s) => s.subject_id === subjectId);
-  if (!subject?.class_ids.length) return allClasses;
-  const set = new Set(subject.class_ids);
-  return allClasses.filter((c) => set.has(c.class_id));
 }

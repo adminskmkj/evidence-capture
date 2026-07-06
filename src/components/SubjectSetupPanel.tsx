@@ -1,80 +1,69 @@
 import { useMemo, useState } from 'react';
 import { saveSubjects, type SubjectSaveRow } from '../api/appsScriptClient';
-import { proposeSubjectsFromClasses, proposeSubjectsFromImportRows, subjectsToApiPayload } from '../data/subjectSetup';
-import { slugId } from '../data/userData';
+import {
+  type ClassSubjectLine,
+  linesFromSubjects,
+  subjectsFromClassSubjectLines,
+  subjectsToApiPayload,
+} from '../data/subjectSetup';
 import type { ClassGroup, Subject } from '../types/domain';
 
-export interface SubjectDraft {
-  key: string;
-  yearLevel: string;
-  jenisKelas: string;
-  classNames: string[];
-  subjectName: string;
-  enabled: boolean;
-}
-
 interface SubjectSetupPanelProps {
-  classes: ClassGroup[];
+  /** Semua kelas dalam Sheet (untuk pilih); app lain hanya tunjuk yang dalam setup. */
+  allClasses: ClassGroup[];
   existingSubjects: Subject[];
   onSaved: () => void;
 }
 
-export function SubjectSetupPanel({ classes, existingSubjects, onSaved }: SubjectSetupPanelProps) {
-  const [drafts, setDrafts] = useState<SubjectDraft[]>(() => subjectsToDrafts(existingSubjects, classes));
+export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: SubjectSetupPanelProps) {
+  const [lines, setLines] = useState<ClassSubjectLine[]>(() => linesFromSubjects(existingSubjects, allClasses));
+  const [pickClassId, setPickClassId] = useState('');
+  const [pickSubject, setPickSubject] = useState('');
   const [status, setStatus] = useState<'idle' | 'saving' | 'error'>('idle');
   const [error, setError] = useState('');
 
-  const activeCount = useMemo(() => drafts.filter((d) => d.enabled && d.subjectName.trim()).length, [drafts]);
+  const classById = useMemo(() => new Map(allClasses.map((c) => [c.class_id, c])), [allClasses]);
+  const validLines = useMemo(() => lines.filter((l) => l.classId && l.subjectName.trim()), [lines]);
 
-  function generateFromClasses() {
-    const proposals = proposeSubjectsFromClasses(classes);
-    setDrafts(
-      proposals.map((p) => ({
-        ...p,
-        subjectName: '',
-        enabled: true,
-      })),
-    );
-  }
-
-  function updateDraft(key: string, patch: Partial<SubjectDraft>) {
-    setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d)));
-  }
-
-  function addManualRow() {
-    const key = `manual-${Date.now()}`;
-    setDrafts((prev) => [
+  function addLine() {
+    const classId = pickClassId;
+    const subjectName = pickSubject.trim();
+    if (!classId) {
+      setError('Pilih kelas dulu.');
+      setStatus('error');
+      return;
+    }
+    if (!subjectName) {
+      setError('Isi nama subjek.');
+      setStatus('error');
+      return;
+    }
+    setError('');
+    setStatus('idle');
+    setLines((prev) => [
       ...prev,
-      {
-        key,
-        yearLevel: '—',
-        jenisKelas: '—',
-        classNames: classes.length === 1 ? [classes[0].class_name] : [],
-        subjectName: '',
-        enabled: true,
-      },
+      { id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, classId, subjectName },
     ]);
+    setPickSubject('');
+  }
+
+  function removeLine(id: string) {
+    setLines((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  function updateLineSubject(id: string, subjectName: string) {
+    setLines((prev) => prev.map((l) => (l.id === id ? { ...l, subjectName } : l)));
   }
 
   async function handleSave() {
-    const toSave = drafts.filter((d) => d.enabled && d.subjectName.trim());
-    if (!toSave.length) {
-      setError('Isi nama subjek sekurang-kurangnya satu baris.');
+    if (!validLines.length) {
+      setError('Tambah sekurang-kurangnya satu kelas + subjek.');
       setStatus('error');
       return;
     }
 
-    const classNameToId = new Map(classes.map((c) => [c.class_name, c.class_id]));
-    const subjects: Subject[] = toSave.map((d) => ({
-      subject_id: slugId(`${d.subjectName}-${d.yearLevel}-${d.jenisKelas}`),
-      subject_name: d.subjectName.trim(),
-      year_level: d.yearLevel,
-      jenis_kelas: d.jenisKelas !== '—' ? d.jenisKelas : undefined,
-      class_ids: d.classNames.map((n) => classNameToId.get(n)).filter((id): id is string => !!id),
-      active: true,
-    }));
-
-    const payload: SubjectSaveRow[] = subjectsToApiPayload(subjects, classes).map((s) => ({
+    const subjects = subjectsFromClassSubjectLines(validLines, allClasses);
+    const payload: SubjectSaveRow[] = subjectsToApiPayload(subjects, allClasses).map((s) => ({
       subject_id: s.subject_id || '',
       subject_name: s.subject_name || '',
       year_level: s.year_level || '',
@@ -97,115 +86,103 @@ export function SubjectSetupPanel({ classes, existingSubjects, onSaved }: Subjec
   return (
     <div className="subject-setup">
       <p className="context-note">
-        Setiap guru lain subjek &amp; kelas. <strong>Jana dari kelas</strong> ikut kumpulan JENIS + TAHUN dari Excel, kemudian isi nama subjek (contoh Muzik, Sains).
+        Senarai murid Excel mungkin banyak kelas — di sini anda pilih <strong>kelas yang anda ajar sahaja</strong> dan
+        subjek untuk setiap kelas. Kelas sama boleh ditambah dua kali dengan subjek berbeza (contoh Muzik &amp; Seni).
       </p>
-      <div className="import-class-actions">
-        <button className="form-chip" disabled={!classes.length} onClick={generateFromClasses} type="button">
-          Jana cadangan dari kelas
-        </button>
-        <button className="form-chip" onClick={addManualRow} type="button">
-          + Tambah subjek manual
-        </button>
-      </div>
 
-      {!drafts.length && (
-        <p className="login-warning">Tiada subjek lagi. Muat naik murid dulu, kemudian klik Jana cadangan.</p>
-      )}
-
-      <ul className="subject-draft-list">
-        {drafts.map((d) => (
-          <li className="subject-draft-row" key={d.key}>
-            <label className="import-class-row">
-              <input
-                checked={d.enabled}
-                onChange={(e) => updateDraft(d.key, { enabled: e.target.checked })}
-                type="checkbox"
-              />
-              <span className="import-class-meta">
-                {d.jenisKelas !== '—' ? d.jenisKelas : 'Jenis —'}
-                {d.yearLevel !== '—' ? ` · ${d.yearLevel}` : ''}
-                {' · '}
-                {d.classNames.length} kelas
-              </span>
+      {allClasses.length === 0 ? (
+        <p className="login-warning">Tiada kelas dalam Sheet. Muat naik Excel murid dulu.</p>
+      ) : (
+        <>
+          <div className="class-subject-add">
+            <label className="form-group" style={{ flex: 1 }}>
+              <span className="context-note">Kelas</span>
+              <select
+                className="form-input"
+                onChange={(e) => setPickClassId(e.target.value)}
+                value={pickClassId}
+              >
+                <option value="">— Pilih kelas —</option>
+                {allClasses.map((c) => (
+                  <option key={c.class_id} value={c.class_id}>
+                    {c.class_name}
+                    {c.year_level !== '—' ? ` (${c.year_level})` : ''}
+                  </option>
+                ))}
+              </select>
             </label>
-            <input
-              className="form-input"
-              onChange={(e) => updateDraft(d.key, { subjectName: e.target.value })}
-              placeholder="Nama subjek (cth: Muzik)"
-              type="text"
-              value={d.subjectName}
-            />
-            <p className="context-note" style={{ margin: '0.25rem 0 0', fontSize: '0.8rem' }}>
-              Kelas: {d.classNames.slice(0, 4).join(', ')}
-              {d.classNames.length > 4 ? ` +${d.classNames.length - 4}` : ''}
-            </p>
-          </li>
-        ))}
-      </ul>
+            <label className="form-group" style={{ flex: 1 }}>
+              <span className="context-note">Subjek</span>
+              <input
+                className="form-input"
+                onChange={(e) => setPickSubject(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addLine();
+                  }
+                }}
+                placeholder="cth: Muzik"
+                type="text"
+                value={pickSubject}
+              />
+            </label>
+            <button className="primary-action" onClick={addLine} type="button">
+              + Tambah
+            </button>
+          </div>
+
+          <p className="context-note" style={{ marginTop: '0.5rem' }}>
+            {allClasses.length} kelas dalam Sheet · anda ajar <strong>{new Set(validLines.map((l) => l.classId)).size}</strong>{' '}
+            kelas · <strong>{validLines.length}</strong> baris subjek
+          </p>
+
+          <ul className="subject-draft-list">
+            {lines.map((line) => {
+              const c = classById.get(line.classId);
+              return (
+                <li className="subject-draft-row class-subject-line" key={line.id}>
+                  <div className="class-subject-line__head">
+                    <strong>{c?.class_name || 'Kelas?'}</strong>
+                    <button className="form-chip" onClick={() => removeLine(line.id)} type="button">
+                      Buang
+                    </button>
+                  </div>
+                  <input
+                    className="form-input"
+                    onChange={(e) => updateLineSubject(line.id, e.target.value)}
+                    placeholder="Nama subjek"
+                    type="text"
+                    value={line.subjectName}
+                  />
+                  {c && (
+                    <span className="import-class-meta">
+                      {c.jenis_kelas ? `${c.jenis_kelas} · ` : ''}
+                      {c.year_level !== '—' ? c.year_level : ''}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          {!lines.length && (
+            <p className="login-warning">Belum ada setup. Pilih kelas + subjek, klik Tambah.</p>
+          )}
+        </>
+      )}
 
       {status === 'error' && <p className="capture-error">{error}</p>}
 
       <button
         className="primary-action"
-        disabled={status === 'saving' || !activeCount}
+        disabled={status === 'saving' || !validLines.length}
         onClick={() => void handleSave()}
         style={{ marginTop: '0.75rem' }}
         type="button"
       >
-        {status === 'saving' ? 'Menyimpan…' : `Simpan ${activeCount} subjek`}
+        {status === 'saving' ? 'Menyimpan…' : `Simpan setup (${validLines.length})`}
       </button>
     </div>
   );
-}
-
-function subjectsToDrafts(subjects: Subject[], classes: ClassGroup[]): SubjectDraft[] {
-  const idToName = new Map(classes.map((c) => [c.class_id, c.class_name]));
-  return subjects.map((s) => ({
-    key: s.subject_id,
-    yearLevel: s.year_level,
-    jenisKelas: s.jenis_kelas || '—',
-    classNames: s.class_ids.map((id) => idToName.get(id) || '').filter(Boolean),
-    subjectName: s.subject_name,
-    enabled: true,
-  }));
-}
-
-export function buildSubjectDraftsFromRows(
-  rows: { className: string; classType: string; yearLevel?: string }[],
-): SubjectDraft[] {
-  return proposeSubjectsFromImportRows(
-    rows.map((r) => ({
-      className: r.className,
-      classType: r.classType,
-      yearLevel: r.yearLevel || '—',
-    })),
-  ).map((p) => ({ ...p, enabled: true }));
-}
-
-export async function saveSubjectDrafts(
-  drafts: SubjectDraft[],
-  classes: ClassGroup[],
-): Promise<{ ok: boolean; error?: string }> {
-  const toSave = drafts.filter((d) => d.enabled && d.subjectName.trim());
-  if (!toSave.length) return { ok: false, error: 'Tiada subjek untuk disimpan' };
-
-  const classNameToId = new Map(classes.map((c) => [c.class_name, c.class_id]));
-  const subjects: Subject[] = toSave.map((d) => ({
-    subject_id: slugId(`${d.subjectName}-${d.yearLevel}-${d.jenisKelas}`),
-    subject_name: d.subjectName.trim(),
-    year_level: d.yearLevel,
-    jenis_kelas: d.jenisKelas !== '—' ? d.jenisKelas : undefined,
-    class_ids: d.classNames.map((n) => classNameToId.get(n)).filter((id): id is string => !!id),
-    active: true,
-  }));
-
-  const payload: SubjectSaveRow[] = subjectsToApiPayload(subjects, classes).map((s) => ({
-    subject_id: s.subject_id || '',
-    subject_name: s.subject_name || '',
-    year_level: s.year_level || '',
-    jenis_kelas: s.jenis_kelas || '',
-    class_names: s.class_names || [],
-  }));
-
-  return saveSubjects(payload, { replaceAll: false });
 }

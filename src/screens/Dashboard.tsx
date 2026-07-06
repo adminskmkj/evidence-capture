@@ -7,16 +7,19 @@ interface DashboardProps {
 }
 
 export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport }: DashboardProps) {
-  const { loading, error, classes, students, subjects, countStudentsByClassId } = useUserData();
+  const { loading, error, allClasses, classes, students, teachingSlots, countStudentsByClassId } = useUserData();
+
+  const studentCountInTeaching = students.filter((s) => classes.some((c) => c.class_id === s.class_id)).length;
 
   return (
     <>
       <section className="dashboard-hero">
         <div>
           <p className="eyebrow">Dashboard</p>
-          <h2>Simpan evidence gambar dan video pendek dengan tersusun.</h2>
+          <h2>Evidence untuk kelas yang anda ajar sahaja.</h2>
           <p className="hero-copy">
-            Kelas &amp; murid ikut akaun anda. Subjek anda setup sekali dalam <strong>Tetapan</strong> (jana dari Excel/kelas).
+            Excel boleh ada banyak kelas — pilih <strong>5 kelas (atau berapa pun)</strong> dalam{' '}
+            <strong>Tetapan → Setup kelas &amp; subjek</strong>.
           </p>
         </div>
 
@@ -27,16 +30,16 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
 
       <section className="stat-grid" aria-label="Statistik dashboard">
         <article className="stat-card">
-          <span>Subjek anda</span>
-          <strong>{loading ? '…' : subjects.length}</strong>
-        </article>
-        <article className="stat-card">
-          <span>Kelas anda</span>
+          <span>Kelas anda ajar</span>
           <strong>{loading ? '…' : classes.length}</strong>
         </article>
         <article className="stat-card">
-          <span>Murid anda</span>
-          <strong>{loading ? '…' : students.length}</strong>
+          <span>Subjek (baris setup)</span>
+          <strong>{loading ? '…' : teachingSlots.length}</strong>
+        </article>
+        <article className="stat-card">
+          <span>Murid (kelas anda)</span>
+          <strong>{loading ? '…' : studentCountInTeaching}</strong>
         </article>
         <article className="stat-card">
           <span>Evidence bulan ini</span>
@@ -47,7 +50,7 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
       {error && (
         <p className="capture-error" style={{ marginBottom: '1rem' }}>
           {error}{' '}
-          {error.includes('kelas') && (
+          {error.includes('Sheet') && (
             <button className="text-button" onClick={onOpenImport} type="button">
               Muat naik Excel
             </button>
@@ -55,64 +58,36 @@ export function Dashboard({ evidenceThisMonth = 0, onStartEvidence, onOpenImport
         </p>
       )}
 
-      <section className="capture-panel" aria-label="Kelas dari senarai murid">
-        <div className="form-header" style={{ marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0 }}>Kelas anda</h3>
-          <p className="context-note" style={{ margin: '0.35rem 0 0' }}>
-            Setiap <strong>NAMA KELAS</strong> dalam Excel jadi satu kelas di sini.
-          </p>
-        </div>
+      {!loading && allClasses.length > 0 && classes.length === 0 && (
+        <p className="login-warning" style={{ marginBottom: '1rem' }}>
+          Ada {allClasses.length} kelas dalam Sheet tetapi anda belum setup kelas ajar. Pergi <strong>Tetapan</strong>.
+        </p>
+      )}
 
-        {loading && <p className="capture-loading">Memuatkan kelas…</p>}
-
-        {!loading && classes.length === 0 && (
-          <button className="primary-action" onClick={onOpenImport} type="button">
-            Muat naik senarai murid (Excel)
-          </button>
+      <section className="subject-grid" aria-label="Kelas dan subjek anda">
+        {!loading && teachingSlots.length === 0 && allClasses.length > 0 && (
+          <p className="login-warning">Tiada setup. Tetapan → pilih kelas + subjek.</p>
         )}
 
-        {!loading && classes.length > 0 && (
-          <ul className="class-shortcut-list">
-            {classes.map((classGroup) => (
-              <li key={classGroup.class_id}>
-                <button
-                  className="class-shortcut"
-                  onClick={() => onStartEvidence('', classGroup.class_id)}
-                  type="button"
-                >
-                  <span>{classGroup.class_name}</span>
-                  <small>
-                    {classGroup.year_level !== '—' ? `${classGroup.year_level} · ` : ''}
-                    {countStudentsByClassId(classGroup.class_id)} murid
-                  </small>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="subject-grid" aria-label="Subjek anda">
-        {!loading && subjects.length === 0 && (
-          <p className="login-warning">
-            Tiada subjek lagi. Pergi <strong>Tetapan → Setup subjek</strong> (jana dari kelas import).
-          </p>
-        )}
-        {subjects.map((subject) => (
-          <article className="subject-card" key={subject.subject_id}>
+        {teachingSlots.map((slot) => (
+          <article className="subject-card" key={slot.slot_id}>
             <div className="subject-card__header">
               <div>
-                <p className="subject-year">{subject.year_level}</p>
-                <h3>{subject.subject_name}</h3>
+                <p className="subject-year">{slot.class_name}</p>
+                <h3>{slot.subject_name}</h3>
               </div>
             </div>
+            <p className="context-note" style={{ margin: '0 0 0.5rem' }}>
+              {countStudentsByClassId(slot.class_id)} murid
+              {slot.year_level !== '—' ? ` · ${slot.year_level}` : ''}
+            </p>
             <button
               className="primary-action"
-              onClick={() => onStartEvidence(subject.subject_id)}
-              style={{ marginTop: '0.5rem', width: '100%' }}
+              onClick={() => onStartEvidence(slot.subject_id, slot.class_id)}
+              style={{ width: '100%' }}
               type="button"
             >
-              Evidence {subject.subject_name}
+              + Evidence
             </button>
           </article>
         ))}

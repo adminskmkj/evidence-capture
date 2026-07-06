@@ -12,7 +12,7 @@ interface SettingsProps {
 
 export function Settings({ onLogout }: SettingsProps) {
   const user = getUser();
-  const { loading, classes, students, subjects, refresh, error } = useUserData();
+  const { loading, allClasses, classes, students, subjects, teachingSlots, refresh, error } = useUserData();
   const [showImport, setShowImport] = useState(false);
 
   if (showImport) {
@@ -51,14 +51,16 @@ export function Settings({ onLogout }: SettingsProps) {
       <div className="capture-panel" style={{ marginTop: '1rem' }}>
         <h3>Senarai murid &amp; kelas</h3>
         <dl className="evidence-meta">
-          <dt>Kelas</dt>
+          <dt>Kelas dalam Sheet</dt>
+          <dd>{loading ? '…' : allClasses.length}</dd>
+          <dt>Kelas anda ajar (setup)</dt>
           <dd>{loading ? '…' : classes.length}</dd>
-          <dt>Murid</dt>
+          <dt>Murid (semua dalam Sheet)</dt>
           <dd>{loading ? '…' : students.length}</dd>
         </dl>
-        {error && error.includes('kelas') && <p className="capture-error">{error}</p>}
+        {error && <p className="capture-error">{error}</p>}
         <p className="context-note">
-          Pilih kelas yang anda ajar sahaja semasa import Excel (elak timeout).
+          Import boleh masukkan banyak kelas sekaligus. Kelas yang dipaparkan dalam app = yang anda setup di bawah.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
           <button className="primary-action" onClick={() => setShowImport(true)} type="button">
@@ -71,12 +73,13 @@ export function Settings({ onLogout }: SettingsProps) {
       </div>
 
       <div className="capture-panel" style={{ marginTop: '1rem' }}>
-        <h3>Setup subjek (per guru)</h3>
+        <h3>Setup kelas &amp; subjek</h3>
         <p className="context-note" style={{ marginBottom: '0.75rem' }}>
-          Subjek: <strong>{loading ? '…' : subjects.length}</strong> — setiap cikgu lain. Jana sekali dari kumpulan kelas (JENIS + TAHUN dari Excel).
+          Baris setup: <strong>{loading ? '…' : teachingSlots.length}</strong> — hanya ini dipaparkan di Dashboard.
         </p>
         <SubjectSetupPanel
-          classes={classes}
+          key={teachingSlots.map((s) => s.slot_id).join('|') || 'empty'}
+          allClasses={allClasses}
           existingSubjects={subjects}
           onSaved={() => void refresh()}
         />

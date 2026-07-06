@@ -954,3 +954,17 @@ button {
 .subject-draft-row .form-input {
   width: 100%;
 }
+
+.class-subject-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.class-subject-line__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
