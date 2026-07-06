@@ -121,7 +121,8 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
           Fail sekolah ada ramai kelas — <strong>pilih kelas yang anda ajar sahaja</strong>. App hanya simpan kelas yang ditick.
         </p>
         <p className="login-warning">
-          Header: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>DARJAH</strong>, <strong>JENIS KELAS</strong> (fail JBA).
+          Header: <strong>NAMA</strong>, <strong>NAMA KELAS</strong>, <strong>DARJAH</strong> atau <strong>TAHUN / TINGKATAN</strong>,{' '}
+          <strong>JENIS KELAS</strong> (fail JBA).
         </p>
 
         {(step === 'idle' || step === 'error') && (
@@ -140,7 +141,9 @@ export function ImportStudents({ onDone }: ImportStudentsProps) {
             </p>
             <DarjahFilterBar onChange={setDarjahFilter} title="① Ketik darjah — tapis senarai kelas" value={darjahFilter} />
             {darjahColumnFound ? (
-              <p className="context-note">Kolum <strong>DARJAH</strong> dijumpai dalam Excel.</p>
+              <p className="context-note">
+                Kolum <strong>DARJAH</strong> atau <strong>TAHUN / TINGKATAN</strong> dijumpai dalam Excel.
+              </p>
             ) : (
               <p className="context-note">Kolum DARJAH tidak dijumpai — darjah dari nama kelas (cth. 1 BESTARI).</p>
             )}
@@ -251,13 +254,36 @@ function summarizeClasses(rows: StudentImportRow[]): ClassSummary[] {
 
 function normHeader(cell: unknown): string {
   return String(cell ?? '')
+    .replace(/\u00a0/g, ' ')
     .replace(/\*/g, '')
+    .replace(/\s*\/\s*/g, ' / ')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase()
     .replace(/\.$/, '');
 }
 
+function colIndexForTahun(headers: string[]): number {
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i];
+    if (!h) continue;
+    if (h === 'DARJAH' || h === 'TAHUN' || h === 'TINGKATAN') return i;
+    if (h === 'TAHUN / TINGKATAN' || h === 'TAHUN/TINGKATAN') return i;
+    if (h.includes('DARJAH')) return i;
+    if (h.includes('TAHUN') && h.includes('TINGKATAN')) return i;
+    if (h.startsWith('TAHUN ') && h.includes('TINGKATAN')) return i;
+  }
+  return -1;
+}
+
+function findTahunColumnInMatrix(matrix: unknown[][], scanLimit: number): number {
+  for (let r = 0; r < scanLimit; r++) {
+    const headers = (matrix[r] || []).map(normHeader);
+    const ti = colIndexForTahun(headers);
+    if (ti >= 0) return ti;
+  }
+  return -1;
+}
 function colIndexForNama(headers: string[]): number {
   for (let i = 0; i < headers.length; i++) {
     const h = headers[i];
@@ -282,23 +308,6 @@ function colIndexForJenis(headers: string[]): number {
   return -1;
 }
 
-function colIndexForTahun(headers: string[]): number {
-  for (let i = 0; i < headers.length; i++) {
-    const h = headers[i];
-    if (
-      h === 'DARJAH' ||
-      h === 'TAHUN / TINGKATAN' ||
-      h === 'TAHUN/TINGKATAN' ||
-      h === 'TINGKATAN' ||
-      h === 'TAHUN' ||
-      h.includes('DARJAH')
-    ) {
-      return i;
-    }
-  }
-  return -1;
-}
-
 async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[]; darjahColumnFound: boolean }> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
@@ -309,10 +318,11 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
   let namaIdx = -1;
   let kelasIdx = -1;
   let jenisIdx = -1;
-
   let tahunIdx = -1;
 
   const scanLimit = Math.min(matrix.length, 40);
+  const tahunColFromAnyRow = findTahunColumnInMatrix(matrix, scanLimit);
+
   for (let r = 0; r < scanLimit; r++) {
     const row = matrix[r] || [];
     const headers = row.map(normHeader);
@@ -324,6 +334,7 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
       kelasIdx = ki;
       jenisIdx = colIndexForJenis(headers);
       tahunIdx = colIndexForTahun(headers);
+      if (tahunIdx < 0) tahunIdx = tahunColFromAnyRow;
       break;
     }
   }
@@ -333,6 +344,8 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
       'Header NAMA / NAMA KELAS tidak dijumpai. Pastikan fail ada baris tajuk kolum (contoh fail JBA: baris dengan NAMA, NAMA KELAS).',
     );
   }
+
+  if (tahunIdx < 0) tahunIdx = tahunColFromAnyRow;
 
   const result: StudentImportRow[] = [];
   let carryDarjah = '';

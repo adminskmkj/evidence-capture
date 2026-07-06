@@ -31,6 +31,7 @@ function parseDarjahNumber(text: string): number | null {
 
   const patterns = [
     /(?:darjah|tahun|tingkatan|darjah\/tahun)\s*[:-]?\s*(\d)/i,
+    /tingkatan\s*(\d)/i,
     /^d\s*(\d)$/i,
     /^(\d)$/,
     /^(\d)\s*[^\d]/,
