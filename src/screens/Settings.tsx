@@ -23,15 +23,18 @@ export function Settings({ onLogout }: SettingsProps) {
     const r = await pingBackend();
     setBackendBusy(false);
     if (r.ok) {
+      const ver = String(r.version || '');
       const hasSave = r.actions?.includes('saveSubjects');
-      const rowsFix = String(r.version || '').includes('writeRows-v3');
-      setBackendCheck(
-        hasSave && rowsFix
-          ? `OK — backend ${r.version}, saveSubjects + tulis murid (writeRows-v3).`
-          : hasSave
-            ? `Backend ${r.version} — redeploy Code.gs terbaru (mesti writeRows-v3). URL Vercel mesti sama deployment GAS.`
-            : `Backend ${r.version} tetapi saveSubjects TIADA — paste Code.gs penuh & redeploy.`,
-      );
+      const muridOk = ver.includes('writeRows-v3');
+      if (muridOk && hasSave) {
+        setBackendCheck(`OK — ${ver}. Backend lengkap: import murid + simpan subjek.`);
+      } else if (muridOk) {
+        setBackendCheck(`OK tulis murid (${ver}). saveSubjects tiada dalam ping — semak Code.gs.`);
+      } else if (hasSave) {
+        setBackendCheck(`Backend ${ver} — tulis murid belum writeRows-v3. Redeploy Code.gs terbaru.`);
+      } else {
+        setBackendCheck(`Backend ${ver} — saveSubjects TIADA. Paste Code.gs penuh & redeploy.`);
+      }
     } else {
       setBackendCheck(r.error || 'Gagal');
     }
@@ -93,7 +96,7 @@ export function Settings({ onLogout }: SettingsProps) {
         <h3>Setup kelas &amp; subjek</h3>
         <p className="context-note" style={{ marginBottom: '0.75rem' }}>
           <strong>Tiada popup.</strong> Butang D1–D6 / PRA + senarai kelas terus di bawah. Versi UI:{' '}
-          <code>2026-07-06b</code>
+          <code>2026-07-06c</code> (Semak backend ikut writeRows-v3, bukan v2)
         </p>
         <SubjectSetupPanel
           key={teachingSlots.map((s) => s.slot_id).join('|') || 'empty'}
