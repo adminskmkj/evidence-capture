@@ -142,18 +142,43 @@ function handleUploadStudents(p) {
   } else {
     var incomingClasses = {};
     for (var i = 0; i < rows.length; i++) {
-      var cn = String(rows[i].className || '').trim();
+      var cn = normClassKey(rows[i].className);
       if (cn) incomingClasses[cn] = true;
     }
     var existing = readUserRows(sheet);
     for (var j = 0; j < existing.length; j++) {
-      if (!incomingClasses[existing[j].className]) merged.push(existing[j]);
+      if (!incomingClasses[normClassKey(existing[j].className)]) merged.push(existing[j]);
     }
     for (var k = 0; k < rows.length; k++) merged.push(rows[k]);
   }
 
-  writeUserRows(sheet, merged);
+  writeUserRows(sheet, dedupeUserRows(merged));
   return jsonResponse({ ok: true, count: rows.length, total: merged.length });
+}
+
+function normClassKey(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ');
+}
+
+/** Satu murid sekali sahaja per kelas (nama + kelas). */
+function dedupeUserRows(rows) {
+  var seen = {};
+  var out = [];
+  for (var i = 0; i < rows.length; i++) {
+    var cn = normClassKey(rows[i].className);
+    var sn = String(rows[i].studentName || '').trim().replace(/\s+/g, ' ');
+    if (!cn || !sn) continue;
+    var key = cn.toLowerCase() + '\x1f' + sn.toLowerCase();
+    if (seen[key]) continue;
+    seen[key] = true;
+    out.push({
+      className: cn,
+      classType: rows[i].classType || '',
+      yearLevel: rows[i].yearLevel || '',
+      studentName: sn,
+    });
+  }
+  return out;
 }
 
 function readUserRows(sheet) {

@@ -47,12 +47,17 @@ export function normalizeUserBootstrap(
   }
 
   const students: Student[] = [];
+  const seenStudent = new Set<string>();
 
   for (const raw of apiStudents) {
     const s = raw as ApiUserStudent;
-    const studentName = String(s.student_name || '').trim();
-    const className = String(s.class_name || '').trim();
+    const studentName = String(s.student_name || '').trim().replace(/\s+/g, ' ');
+    const className = String(s.class_name || '').trim().replace(/\s+/g, ' ');
     if (!studentName || !className) continue;
+
+    const dedupeKey = `${className.toLowerCase()}\x1f${studentName.toLowerCase()}`;
+    if (seenStudent.has(dedupeKey)) continue;
+    seenStudent.add(dedupeKey);
 
     if (!classMeta.has(className)) {
       classMeta.set(className, {

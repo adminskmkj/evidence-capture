@@ -323,6 +323,20 @@ function looksLikeHeaderCell(text: string): boolean {
   return u.includes('TAHUN') && u.includes('TINGKATAN');
 }
 
+function dedupeImportRows(rows: StudentImportRow[]): StudentImportRow[] {
+  const seen = new Set<string>();
+  const out: StudentImportRow[] = [];
+  for (const r of rows) {
+    const cn = r.className.trim().replace(/\s+/g, ' ');
+    const sn = r.studentName.trim().replace(/\s+/g, ' ');
+    const key = `${cn.toLowerCase()}\x1f${sn.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ ...r, className: cn, studentName: sn });
+  }
+  return out;
+}
+
 async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[]; darjahColumnFound: boolean }> {
   const XLSX = await import('xlsx');
   const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
@@ -384,9 +398,10 @@ async function parseExcel(buf: ArrayBuffer): Promise<{ rows: StudentImportRow[];
     result.push({ className, classType, studentName, yearLevel });
   }
 
-  if (!result.length) {
+  const deduped = dedupeImportRows(result);
+  if (!deduped.length) {
     throw new Error('Tiada murid dijumpai selepas baris header. Semak kolum NAMA dan NAMA KELAS ada data.');
   }
 
-  return { rows: result, darjahColumnFound: tahunIdx >= 0 };
+  return { rows: deduped, darjahColumnFound: tahunIdx >= 0 };
 }
