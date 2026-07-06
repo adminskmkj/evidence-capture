@@ -117,6 +117,26 @@ Ini bermakna **URL Web App yang anda buka masih versi lama** (atau projek salah)
 
 Kalau anda pernah buat **New deployment** (bukan Edit), URL baru ≠ URL lama — kemas kini `VITE_APPS_SCRIPT_URL` di Vercel dengan URL baru, redeploy Vercel.
 
+### Ralat `Script function not found: doPost` (atau `doGet`)
+
+URL Web App **wujud**, tetapi **projek yang dipaut ke deployment itu tidak ada** `function doPost` / `doGet`.
+
+1. Di [script.google.com](https://script.google.com/) buka **setiap** projek → **Deploy → Manage deployments**.
+2. Cari deployment yang URL-nya **sama** dengan `VITE_APPS_SCRIPT_URL` (contoh akhiran `…UNtoJLA/exec`).
+3. **Itu** projek yang betul — dalam projek itu sahaja tampal `apps-script/Code.gs` (~350 baris).
+4. Pastikan atas fail ada `function doGet()` dan `function doPost(e)`.
+5. **Simpan** → Run `doPost` (pilih fungsi lain dulu, run `doGet` untuk uji).
+6. **Manage deployments → pensel → New version → Deploy** (jangan cipta URL baru melainkan anda akan kemas kini Vercel).
+
+Ujian cepat (PowerShell / Git Bash):
+
+```bash
+curl -sL "URL_ANDA/exec" | grep "Script function"
+curl -sL -X POST "URL_ANDA/exec" -H "Content-Type: text/plain" --data-binary '{"action":"ping"}' | grep "Script function"
+```
+
+Mesti **tiada** teks `Script function not found`. Selepas deploy betul, POST patut balas JSON `{"ok":true,"version":"2026-07-06",...}`.
+
 ---
 
 ## 4. Vercel
