@@ -20,6 +20,10 @@ export function normalizeDarjahLabel(raw: string, className?: string): string {
   return '—';
 }
 
+export function parseDarjahNumberFromText(text: string): number | null {
+  return parseDarjahNumber(text);
+}
+
 function parseDarjahNumber(text: string): number | null {
   const t = String(text || '').trim();
   if (!t) return null;

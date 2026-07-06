@@ -33,9 +33,8 @@ export function SubjectSetupPanel({ allClasses, existingSubjects, onSaved }: Sub
   const filteredClasses = useMemo(() => {
     const q = classFilter.trim().toLowerCase();
     return allClasses.filter((c) => {
-      if (!matchesDarjahFilter(c.year_level, darjahFilter)) return false;
-      if (!q) return true;
-      return c.class_name.toLowerCase().includes(q);
+      if (q) return c.class_name.toLowerCase().includes(q);
+      return matchesDarjahFilter(c.year_level, darjahFilter);
     });
   }, [allClasses, classFilter, darjahFilter]);
 

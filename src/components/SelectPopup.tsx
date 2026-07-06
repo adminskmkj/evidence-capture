@@ -12,7 +12,9 @@ export function SelectPopup({ open, title, onClose, children }: SelectPopupProps
 
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
@@ -22,14 +24,32 @@ export function SelectPopup({ open, title, onClose, children }: SelectPopupProps
   return (
     <div
       className="select-overlay"
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
       ref={overlayRef}
       role="dialog"
+      aria-modal="true"
     >
-      <div className="select-popup">
+      <div
+        className="select-popup"
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <div className="select-popup__head">
           <strong>{title}</strong>
-          <button className="select-popup__close" onClick={onClose} type="button">✕</button>
+          <button
+            aria-label="Tutup"
+            className="select-popup__close"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose();
+            }}
+            type="button"
+          >
+            Tutup ✕
+          </button>
         </div>
         <div className="select-popup__body">{children}</div>
       </div>

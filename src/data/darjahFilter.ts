@@ -1,4 +1,4 @@
-import { formatYearLevelDisplay } from './darjah';
+import { formatYearLevelDisplay, parseDarjahNumberFromText } from './darjah';
 
 export type DarjahFilterKey = 'all' | 'pra' | '1' | '2' | '3' | '4' | '5' | '6';
 
@@ -14,12 +14,16 @@ export const DARJAH_FILTER_BUTTONS: { key: DarjahFilterKey; label: string }[] = 
 ];
 
 export function darjahKeyFromLabel(yearOrDarjah: string): DarjahFilterKey {
+  const raw = String(yearOrDarjah || '').trim();
+  const n = parseDarjahNumberFromText(raw);
+  if (n) return String(n) as DarjahFilterKey;
+
   const d = formatYearLevelDisplay(yearOrDarjah);
   if (d === 'Prasekolah') return 'pra';
   const m = d.match(/^Darjah\s*(\d)/i);
   if (m) {
-    const n = m[1];
-    if (['1', '2', '3', '4', '5', '6'].includes(n)) return n as DarjahFilterKey;
+    const num = m[1];
+    if (['1', '2', '3', '4', '5', '6'].includes(num)) return num as DarjahFilterKey;
   }
   return 'all';
 }
